@@ -2276,6 +2276,8 @@
     <string name="player_video_settings_tone_mapping">Tone mapping</string>
     <string name="player_video_settings_deband">Deband</string>
     <string name="player_video_settings_deband_desc">Reduce color banding at a small performance cost.</string>
+    <string name="player_video_settings_lightweight_renderer">Lightweight renderer</string>
+    <string name="player_video_settings_lightweight_renderer_desc">Uses simpler scaling and skips HDR peak detection, debanding and dithering. Try this if playback makes the device stutter or freeze.</string>
     <string name="player_video_settings_interpolation">Frame interpolation</string>
     <string name="player_video_settings_interpolation_desc">Smooth motion when mpv can use display sync cleanly.</string>
     <string name="player_video_settings_brightness">Brightness</string>

@@ -188,6 +188,8 @@ internal expect object PlayerSettingsStorage {
     fun saveIosHdrComputePeakEnabled(enabled: Boolean)
     fun loadIosDebandEnabled(): Boolean?
     fun saveIosDebandEnabled(enabled: Boolean)
+    fun loadIosLightweightRendererEnabled(): Boolean?
+    fun saveIosLightweightRendererEnabled(enabled: Boolean)
     fun loadIosInterpolationEnabled(): Boolean?
     fun saveIosInterpolationEnabled(enabled: Boolean)
     fun loadIosBrightness(): Int?

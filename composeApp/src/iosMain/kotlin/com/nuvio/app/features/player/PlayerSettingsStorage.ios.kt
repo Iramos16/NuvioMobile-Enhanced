@@ -98,6 +98,7 @@ actual object PlayerSettingsStorage {
     private const val iosTargetColorspaceHintEnabledKey = "ios_target_colorspace_hint_enabled"
     private const val iosHdrComputePeakEnabledKey = "ios_hdr_compute_peak_enabled"
     private const val iosDebandEnabledKey = "ios_deband_enabled"
+    private const val iosLightweightRendererKey = "ios_lightweight_renderer_enabled"
     private const val iosInterpolationEnabledKey = "ios_interpolation_enabled"
     private const val iosBrightnessKey = "ios_brightness"
     private const val iosContrastKey = "ios_contrast"
@@ -173,6 +174,7 @@ actual object PlayerSettingsStorage {
         iosTargetColorspaceHintEnabledKey,
         iosHdrComputePeakEnabledKey,
         iosDebandEnabledKey,
+        iosLightweightRendererKey,
         iosInterpolationEnabledKey,
         iosBrightnessKey,
         iosContrastKey,
@@ -1090,6 +1092,13 @@ actual object PlayerSettingsStorage {
         saveBoolean(iosDebandEnabledKey, enabled)
     }
 
+    actual fun loadIosLightweightRendererEnabled(): Boolean? =
+        loadBoolean(iosLightweightRendererKey)
+
+    actual fun saveIosLightweightRendererEnabled(enabled: Boolean) {
+        saveBoolean(iosLightweightRendererKey, enabled)
+    }
+
     actual fun loadIosInterpolationEnabled(): Boolean? =
         loadBoolean(iosInterpolationEnabledKey)
 
@@ -1196,6 +1205,7 @@ actual object PlayerSettingsStorage {
         loadIosTargetColorspaceHintEnabled()?.let { put(iosTargetColorspaceHintEnabledKey, encodeSyncBoolean(it)) }
         loadIosHdrComputePeakEnabled()?.let { put(iosHdrComputePeakEnabledKey, encodeSyncBoolean(it)) }
         loadIosDebandEnabled()?.let { put(iosDebandEnabledKey, encodeSyncBoolean(it)) }
+        loadIosLightweightRendererEnabled()?.let { put(iosLightweightRendererKey, encodeSyncBoolean(it)) }
         loadIosInterpolationEnabled()?.let { put(iosInterpolationEnabledKey, encodeSyncBoolean(it)) }
         loadIosBrightness()?.let { put(iosBrightnessKey, encodeSyncInt(it)) }
         loadIosContrast()?.let { put(iosContrastKey, encodeSyncInt(it)) }
@@ -1282,6 +1292,7 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncBoolean(iosTargetColorspaceHintEnabledKey)?.let(::saveIosTargetColorspaceHintEnabled)
         payload.decodeSyncBoolean(iosHdrComputePeakEnabledKey)?.let(::saveIosHdrComputePeakEnabled)
         payload.decodeSyncBoolean(iosDebandEnabledKey)?.let(::saveIosDebandEnabled)
+        payload.decodeSyncBoolean(iosLightweightRendererKey)?.let(::saveIosLightweightRendererEnabled)
         payload.decodeSyncBoolean(iosInterpolationEnabledKey)?.let(::saveIosInterpolationEnabled)
         payload.decodeSyncInt(iosBrightnessKey)?.let(::saveIosBrightness)
         payload.decodeSyncInt(iosContrastKey)?.let(::saveIosContrast)

@@ -99,7 +99,8 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
         brightness: Int32,
         contrast: Int32,
         saturation: Int32,
-        gamma: Int32
+        gamma: Int32,
+        lightweightRenderer: Bool
     ) {
         playerVC?.configureVideoOutput(
             hardwareDecoder: hardwareDecoder,
@@ -114,7 +115,8 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
             brightness: Int(brightness),
             contrast: Int(contrast),
             saturation: Int(saturation),
-            gamma: Int(gamma)
+            gamma: Int(gamma),
+            lightweightRenderer: lightweightRenderer
         )
     }
     func configureAudioOutput(audioOutput: String) {
@@ -380,6 +382,7 @@ final class MPVPlayerViewController: UIViewController {
         let contrast: Int
         let saturation: Int
         let gamma: Int
+        let lightweightRenderer: Bool
     }
 
     struct SubtitleStyleSettings {
@@ -395,6 +398,12 @@ final class MPVPlayerViewController: UIViewController {
 
     private var lastLoadRequest: PendingLoadRequest?
     private var lastVideoOutputSettings: VideoOutputSettings?
+    private lazy var stallWatchdog = MainThreadStallWatchdog { [weak self] seconds, ongoing in
+        let label = ongoing
+            ? String(format: "Main thread blocked >= %.1fs (ongoing)", seconds)
+            : String(format: "Main thread stalled %.1fs", seconds)
+        self?.logRenderStats(reason: label)
+    }
     private var lastSubtitleStyle: SubtitleStyleSettings?
     private var lastAudioOutput: String?
     private var lastResizeMode: Int?
@@ -712,6 +721,7 @@ final class MPVPlayerViewController: UIViewController {
         setSetupOption("demuxer-lavf-o", "protocol_whitelist=[file,crypto,data,http,https,tcp,tls]")
 
         checkError(mpv_initialize(mpv))
+        stallWatchdog.start()
 
         mpv_observe_property(mpv, 0, "pause", MPV_FORMAT_FLAG)
         mpv_observe_property(mpv, 0, "paused-for-cache", MPV_FORMAT_FLAG)
@@ -1217,6 +1227,7 @@ final class MPVPlayerViewController: UIViewController {
             completion?()
             return
         }
+        stallWatchdog.stop()
         mpv = nil
         bumpMpvGeneration()
         mpv_set_wakeup_callback(ctx, nil, nil)
@@ -1250,7 +1261,8 @@ final class MPVPlayerViewController: UIViewController {
                 brightness: settings.brightness,
                 contrast: settings.contrast,
                 saturation: settings.saturation,
-                gamma: settings.gamma
+                gamma: settings.gamma,
+                lightweightRenderer: settings.lightweightRenderer
             )
         }
         if let audioOutput = lastAudioOutput { setStringProperty("ao", audioOutput) }
@@ -1306,7 +1318,8 @@ final class MPVPlayerViewController: UIViewController {
         brightness: Int,
         contrast: Int,
         saturation: Int,
-        gamma: Int
+        gamma: Int,
+        lightweightRenderer: Bool
     ) {
         lastVideoOutputSettings = VideoOutputSettings(
             hardwareDecoder: hardwareDecoder,
@@ -1321,7 +1334,8 @@ final class MPVPlayerViewController: UIViewController {
             brightness: brightness,
             contrast: contrast,
             saturation: saturation,
-            gamma: gamma
+            gamma: gamma,
+            lightweightRenderer: lightweightRenderer
         )
         metalLayer.wantsExtendedDynamicRangeContent = extendedDynamicRange
         guard mpv != nil else { return }
@@ -1329,11 +1343,15 @@ final class MPVPlayerViewController: UIViewController {
         setStringProperty("hwdec", hardwareDecoder)
         setStringProperty("target-colorspace-hint", targetColorspaceHint ? "yes" : "no")
         setStringProperty("tone-mapping", toneMapping)
-        setStringProperty("hdr-compute-peak", hdrComputePeak ? "yes" : "no")
+        setStringProperty("hdr-compute-peak", hdrComputePeak && !lightweightRenderer ? "yes" : "no")
         setStringProperty("target-prim", targetPrimaries)
         setStringProperty("target-trc", targetTransfer)
-        setStringProperty("deband", deband ? "yes" : "no")
-        setStringProperty("interpolation", interpolation ? "yes" : "no")
+        setStringProperty("deband", deband && !lightweightRenderer ? "yes" : "no")
+        setStringProperty("interpolation", interpolation && !lightweightRenderer ? "yes" : "no")
+        setStringProperty("scale", lightweightRenderer ? "bilinear" : "lanczos")
+        setStringProperty("cscale", lightweightRenderer ? "bilinear" : "lanczos")
+        setStringProperty("dscale", lightweightRenderer ? "bilinear" : "hermite")
+        setStringProperty("dither-depth", lightweightRenderer ? "no" : "auto")
         setVideoEqualizer("brightness", brightness)
         setVideoEqualizer("contrast", contrast)
         setVideoEqualizer("saturation", saturation)
@@ -2375,6 +2393,21 @@ final class MPVPlayerViewController: UIViewController {
         }
     }
 
+    fileprivate func logRenderStats(reason: String) {
+        withMpvOnQueue { [weak self] _ in
+            guard let self else { return }
+            let message = "\(reason) | drops=\(self.getInt("frame-drop-count"))"
+                + " decoderDrops=\(self.getInt("decoder-frame-drop-count"))"
+                + " voDelayed=\(self.getInt("vo-delayed-frame-count"))"
+                + String(format: " vfFps=%.2f", self.getDouble("estimated-vf-fps"))
+                + " hwdec=\(self.getString("hwdec-current") ?? "none")"
+                + " video=\(self.getInt("width"))x\(self.getInt("height"))"
+                + String(format: " cache=%.1fs", self.getDouble("demuxer-cache-duration"))
+                + " paused=\(self.getFlag("pause")) seeking=\(self.getFlag("seeking"))"
+            InAppLogBridge.shared.warn(tag: "MPV/iOS", message: message)
+        }
+    }
+
     func checkError(_ status: CInt) {
         if status < 0 {
             let message = "API error: \(String(cString: mpv_error_string(status)))"
@@ -2523,5 +2556,63 @@ enum NuvioPlayerRegistration {
     static func register() {
         NuvioPlayerBridgeFactory.shared.registerFactory(creator: MPVPlayerBridgeCreator())
         NuvioSeekPreviewRegistry.shared.registerCreator(creator: FFmpegSeekPreviewGeneratorCreator())
+    }
+}
+
+final class MainThreadStallWatchdog {
+    private let queue = DispatchQueue(label: "nuvio.player.stall-watchdog", qos: .utility)
+    private let threshold: CFTimeInterval = 1.0
+    private let report: (CFTimeInterval, Bool) -> Void
+    private var timer: DispatchSourceTimer?
+    private var pingSentAt: CFAbsoluteTime?
+    private var reportedOngoing = false
+
+    init(report: @escaping (CFTimeInterval, Bool) -> Void) {
+        self.report = report
+    }
+
+    func start() {
+        queue.async { [weak self] in
+            guard let self, self.timer == nil else { return }
+            let timer = DispatchSource.makeTimerSource(queue: self.queue)
+            timer.schedule(deadline: .now() + 0.25, repeating: 0.25, leeway: .milliseconds(50))
+            timer.setEventHandler { [weak self] in self?.tick() }
+            self.timer = timer
+            timer.resume()
+        }
+    }
+
+    func stop() {
+        queue.async { [weak self] in
+            self?.timer?.cancel()
+            self?.timer = nil
+            self?.pingSentAt = nil
+            self?.reportedOngoing = false
+        }
+    }
+
+    private func tick() {
+        let now = CFAbsoluteTimeGetCurrent()
+        if let sentAt = pingSentAt {
+            let waited = now - sentAt
+            if waited >= threshold, !reportedOngoing {
+                reportedOngoing = true
+                report(waited, true)
+            }
+            return
+        }
+        pingSentAt = now
+        DispatchQueue.main.async { [weak self] in
+            let answeredAt = CFAbsoluteTimeGetCurrent()
+            self?.queue.async { [weak self] in
+                guard let self, let sentAt = self.pingSentAt else { return }
+                let stall = answeredAt - sentAt
+                self.pingSentAt = nil
+                self.reportedOngoing = false
+                if stall >= self.threshold, self.timer != nil {
+                    self.report(stall, false)
+                }
+            }
+        }
     }
 }

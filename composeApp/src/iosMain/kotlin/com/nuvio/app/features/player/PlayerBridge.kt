@@ -43,6 +43,7 @@ interface NuvioPlayerBridge {
         contrast: Int,
         saturation: Int,
         gamma: Int,
+        lightweightRenderer: Boolean,
     )
     fun configureAudioOutput(audioOutput: String)
     fun setPlaybackSpeed(speed: Float)

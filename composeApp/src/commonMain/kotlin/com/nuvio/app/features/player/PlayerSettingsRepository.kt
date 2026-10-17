@@ -111,6 +111,7 @@ data class PlayerSettingsUiState(
     val iosTargetColorspaceHintEnabled: Boolean = true,
     val iosHdrComputePeakEnabled: Boolean = true,
     val iosDebandEnabled: Boolean = false,
+    val iosLightweightRendererEnabled: Boolean = false,
     val iosInterpolationEnabled: Boolean = false,
     val iosBrightness: Int = 0,
     val iosContrast: Int = 0,
@@ -201,6 +202,7 @@ object PlayerSettingsRepository {
     private var iosTargetColorspaceHintEnabled = true
     private var iosHdrComputePeakEnabled = true
     private var iosDebandEnabled = false
+    private var iosLightweightRendererEnabled = false
     private var iosInterpolationEnabled = false
     private var iosBrightness = 0
     private var iosContrast = 0
@@ -458,6 +460,7 @@ object PlayerSettingsRepository {
         iosTargetColorspaceHintEnabled = PlayerSettingsStorage.loadIosTargetColorspaceHintEnabled() ?: true
         iosHdrComputePeakEnabled = PlayerSettingsStorage.loadIosHdrComputePeakEnabled() ?: true
         iosDebandEnabled = PlayerSettingsStorage.loadIosDebandEnabled() ?: false
+        iosLightweightRendererEnabled = PlayerSettingsStorage.loadIosLightweightRendererEnabled() ?: false
         iosInterpolationEnabled = PlayerSettingsStorage.loadIosInterpolationEnabled() ?: false
         iosBrightness = PlayerSettingsStorage.loadIosBrightness() ?: 0
         iosContrast = PlayerSettingsStorage.loadIosContrast() ?: 0
@@ -1141,6 +1144,13 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveIosDebandEnabled(enabled)
     }
 
+    fun setIosLightweightRendererEnabled(enabled: Boolean) {
+        ensureLoaded()
+        iosLightweightRendererEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveIosLightweightRendererEnabled(enabled)
+    }
+
     fun setIosInterpolationEnabled(enabled: Boolean) {
         ensureLoaded()
         iosInterpolationEnabled = enabled
@@ -1283,6 +1293,7 @@ object PlayerSettingsRepository {
             iosTargetColorspaceHintEnabled = iosTargetColorspaceHintEnabled,
             iosHdrComputePeakEnabled = iosHdrComputePeakEnabled,
             iosDebandEnabled = iosDebandEnabled,
+            iosLightweightRendererEnabled = iosLightweightRendererEnabled,
             iosInterpolationEnabled = iosInterpolationEnabled,
             iosBrightness = iosBrightness,
             iosContrast = iosContrast,

@@ -37,6 +37,8 @@ import nuvio.composeapp.generated.resources.player_video_settings_hdr_peak_detec
 import nuvio.composeapp.generated.resources.player_video_settings_hdr_peak_detection_desc
 import nuvio.composeapp.generated.resources.player_video_settings_interpolation
 import nuvio.composeapp.generated.resources.player_video_settings_interpolation_desc
+import nuvio.composeapp.generated.resources.player_video_settings_lightweight_renderer
+import nuvio.composeapp.generated.resources.player_video_settings_lightweight_renderer_desc
 import nuvio.composeapp.generated.resources.player_video_settings_output_preset
 import nuvio.composeapp.generated.resources.player_video_settings_reset_tuning
 import nuvio.composeapp.generated.resources.player_video_settings_saturation
@@ -95,6 +97,16 @@ internal fun IosVideoSettingsModal(
                     description = { it.localizedDescription() },
                     onSelect = {
                         PlayerSettingsRepository.setIosVideoOutputPreset(it)
+                        onSettingsChanged()
+                    },
+                )
+
+                ToggleRow(
+                    title = stringResource(Res.string.player_video_settings_lightweight_renderer),
+                    description = stringResource(Res.string.player_video_settings_lightweight_renderer_desc),
+                    checked = settings.iosLightweightRendererEnabled,
+                    onCheckedChange = {
+                        PlayerSettingsRepository.setIosLightweightRendererEnabled(it)
                         onSettingsChanged()
                     },
                 )
