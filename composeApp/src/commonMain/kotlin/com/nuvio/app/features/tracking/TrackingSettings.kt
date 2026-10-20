@@ -5,6 +5,7 @@ import com.nuvio.app.features.simkl.SimklAnimeIdPreference
 import com.nuvio.app.features.trakt.MoreLikeThisSourcePreference
 import com.nuvio.app.features.trakt.TraktSettingsRepository
 import com.nuvio.app.features.trakt.TraktSettingsUiState
+import com.nuvio.app.features.watchhistory.WatchHistoryMergePolicy
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -40,4 +41,7 @@ object TrackingSettingsRepository {
 
     fun setSimklAnimeIdPreference(preference: SimklAnimeIdPreference) =
         TraktSettingsRepository.setSimklAnimeIdPreference(preference)
+
+    fun setWatchHistoryMergePolicy(policy: WatchHistoryMergePolicy) =
+        TraktSettingsRepository.setWatchHistoryMergePolicy(policy)
 }

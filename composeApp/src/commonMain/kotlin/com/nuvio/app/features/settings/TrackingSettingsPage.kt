@@ -47,6 +47,14 @@ import com.nuvio.app.features.watchprogress.WatchProgressSourceCoordinator
 import com.nuvio.app.features.wetrakr.WeTrakrTracker
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.Res
+import com.nuvio.app.features.watchhistory.WatchHistoryMergePolicy
+import nuvio.composeapp.generated.resources.watch_history_title
+import nuvio.composeapp.generated.resources.watch_history_policy_title
+import nuvio.composeapp.generated.resources.watch_history_policy_description
+import nuvio.composeapp.generated.resources.watch_history_policy_most_recent
+import nuvio.composeapp.generated.resources.watch_history_policy_most_recent_description
+import nuvio.composeapp.generated.resources.watch_history_policy_most_complete
+import nuvio.composeapp.generated.resources.watch_history_policy_most_complete_description
 import nuvio.composeapp.generated.resources.tracking_source_mdblist
 import nuvio.composeapp.generated.resources.tracking_source_anilist
 import nuvio.composeapp.generated.resources.tracking_source_wetrakr
@@ -190,6 +198,18 @@ internal fun LazyListScope.trackingSettingsContent(
                     settingsUiState = settingsUiState,
                 )
             }
+        }
+    }
+
+    item {
+        SettingsSection(
+            title = stringResource(Res.string.watch_history_title),
+            isTablet = isTablet,
+        ) {
+            WatchHistoryMergePolicySection(
+                isTablet = isTablet,
+                settingsUiState = settingsUiState,
+            )
         }
     }
 
@@ -802,4 +822,54 @@ private fun animeIdPreferenceLabel(preference: SimklAnimeIdPreference): String =
     SimklAnimeIdPreference.MAL -> stringResource(Res.string.settings_tracking_anime_id_mal)
     SimklAnimeIdPreference.KITSU -> stringResource(Res.string.settings_tracking_anime_id_kitsu)
     SimklAnimeIdPreference.TVDB -> stringResource(Res.string.settings_tracking_anime_id_tvdb)
+}
+
+@Composable
+private fun WatchHistoryMergePolicySection(
+    isTablet: Boolean,
+    settingsUiState: TrackingSettingsUiState,
+) {
+    var showPicker by rememberSaveable { mutableStateOf(false) }
+
+    SettingsGroup(isTablet = isTablet) {
+        TrackingPreferenceActionRow(
+            title = stringResource(Res.string.watch_history_policy_title),
+            description = stringResource(Res.string.watch_history_policy_description),
+            value = watchHistoryMergePolicyLabel(settingsUiState.watchHistoryMergePolicy),
+            isTablet = isTablet,
+            onClick = { showPicker = true },
+        )
+    }
+
+    if (showPicker) {
+        TrackingAdaptivePicker(
+            isTablet = isTablet,
+            title = stringResource(Res.string.watch_history_policy_title),
+            subtitle = stringResource(Res.string.watch_history_policy_description),
+            selectedValue = settingsUiState.watchHistoryMergePolicy,
+            options = watchHistoryMergePolicyOptions(),
+            onSelected = TrackingSettingsRepository::setWatchHistoryMergePolicy,
+            onDismiss = { showPicker = false },
+        )
+    }
+}
+
+@Composable
+internal fun watchHistoryMergePolicyOptions(): List<TrackingPickerOption<WatchHistoryMergePolicy>> = listOf(
+    TrackingPickerOption(
+        value = WatchHistoryMergePolicy.MOST_RECENT,
+        title = stringResource(Res.string.watch_history_policy_most_recent),
+        description = stringResource(Res.string.watch_history_policy_most_recent_description),
+    ),
+    TrackingPickerOption(
+        value = WatchHistoryMergePolicy.MOST_COMPLETE,
+        title = stringResource(Res.string.watch_history_policy_most_complete),
+        description = stringResource(Res.string.watch_history_policy_most_complete_description),
+    ),
+)
+
+@Composable
+internal fun watchHistoryMergePolicyLabel(policy: WatchHistoryMergePolicy): String = when (policy) {
+    WatchHistoryMergePolicy.MOST_RECENT -> stringResource(Res.string.watch_history_policy_most_recent)
+    WatchHistoryMergePolicy.MOST_COMPLETE -> stringResource(Res.string.watch_history_policy_most_complete)
 }
