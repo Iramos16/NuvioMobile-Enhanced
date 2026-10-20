@@ -93,6 +93,7 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         credentialRefreshJob?.cancel()
         credentialRefreshJob = null
         credentialRefreshAttemptedSourceUrl = null
+        streamFailoverJob?.cancel()
         initialLoadCompleted = false
         lastProgressPersistEpochMs = 0L
         previousIsPlaying = false
@@ -888,15 +889,13 @@ internal fun PlayerScreenRuntime.tryRefreshCredentialedSourceAfterError(message:
 
             val stream = refreshedStream
             if (stream == null) {
-                errorMessage = message
-                controlsVisible = !playerControlsLocked
+                showPlaybackErrorOrFailover(message)
                 return@launch
             }
 
             val refreshedUrl = stream.playableDirectUrl
             if (refreshedUrl.isNullOrBlank() || refreshedUrl == failedUrl) {
-                errorMessage = message
-                controlsVisible = !playerControlsLocked
+                showPlaybackErrorOrFailover(message)
                 return@launch
             }
 
@@ -936,8 +935,7 @@ private fun PlayerScreenRuntime.retryServerSourceAfterError(message: String?): B
     credentialRefreshJob = scope.launch {
         val playback = ServerPlayback.fallback(failedUrl)
         if (playback == null) {
-            errorMessage = message
-            controlsVisible = !playerControlsLocked
+            showPlaybackErrorOrFailover(message)
             return@launch
         }
         externalSubtitles = playback.subtitles

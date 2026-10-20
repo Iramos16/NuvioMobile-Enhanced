@@ -3,6 +3,8 @@ package com.nuvio.app.features.player
 import android.app.Application
 import android.content.Context
 import androidx.compose.ui.Modifier
+import com.nuvio.app.features.streams.StreamItem
+import com.nuvio.app.features.streams.StreamsUiState
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import com.nuvio.app.features.watchprogress.WatchProgressStorage
 import kotlinx.coroutines.CoroutineScope
@@ -88,10 +90,89 @@ class PlayerStreamFailoverRuntimeTest {
         assertEquals(5_000L, runtime.failoverResumePositionMs())
     }
 
+    @Test
+    fun credentialRefreshGiveUpStillGetsFailover() {
+        val controller = RetryCountingController()
+        val runtime = runtime(controller)
+
+        runtime.showPlaybackErrorOrFailover("expired")
+        assertEquals(1, controller.retries)
+        assertNull(runtime.errorMessage)
+    }
+
+    @Test
+    fun credentialRefreshGiveUpShowsErrorWhenFailoverIsOff() {
+        val runtime = runtime(RetryCountingController(), failoverEnabled = false)
+
+        runtime.showPlaybackErrorOrFailover("expired")
+        assertEquals("expired", runtime.errorMessage)
+    }
+
+    @Test
+    fun staleFailoverDoesNotOverrideANewerSource() {
+        val runtime = runtime(RetryCountingController())
+        val context = runtime.captureFailoverContext(message = "boom")
+        runtime.activeSourceUrl = "https://example.com/picked-by-user.mp4"
+
+        runtime.finishFailover(context, StreamItem(url = "https://example.com/next.mp4", addonName = "B", addonId = "addon:B"))
+        assertEquals("https://example.com/picked-by-user.mp4", runtime.activeSourceUrl)
+        assertNull(runtime.errorMessage)
+        assertEquals(0, runtime.streamFailoverState.alternativesUsed)
+    }
+
+    @Test
+    fun failoverWithoutCandidateShowsTheError() {
+        val runtime = runtime(RetryCountingController())
+
+        runtime.finishFailover(runtime.captureFailoverContext(message = "boom"), candidate = null)
+        assertEquals("boom", runtime.errorMessage)
+    }
+
+    @Test
+    fun failoverSwitchesToCandidateAtResumePosition() {
+        val runtime = runtime(RetryCountingController(), initialPositionMs = 1_200_000L)
+        val context = runtime.captureFailoverContext(message = "boom")
+
+        runtime.finishFailover(context, StreamItem(url = "https://example.com/next.mp4", addonName = "B", addonId = "addon:B"))
+        assertEquals("https://example.com/next.mp4", runtime.activeSourceUrl)
+        assertEquals(1_200_000L, runtime.activeInitialPositionMs)
+        assertEquals(1, runtime.streamFailoverState.alternativesUsed)
+    }
+
+    @Test
+    fun liveTvFailoverOnlyRetries() {
+        val controller = RetryCountingController()
+        val runtime = runtime(controller, contentType = "live", videoId = "channel-1")
+
+        assertTrue(runtime.tryStreamFailoverAfterError("boom"))
+        assertFalse(runtime.tryStreamFailoverAfterError("boom"))
+        assertNull(runtime.streamFailoverJob)
+        assertEquals(1, controller.retries)
+    }
+
+    @Test
+    fun retryReappliesTheResumePosition() {
+        val runtime = runtime(RetryCountingController())
+        runtime.updatePlaybackSnapshot(PlayerPlaybackSnapshot(positionMs = 600_000L))
+        runtime.initialSeekApplied = true
+
+        runtime.tryStreamFailoverAfterError("boom")
+        assertEquals(600_000L, runtime.activeInitialPositionMs)
+        assertFalse(runtime.initialSeekApplied)
+    }
+
+    @Test
+    fun finishedSourceListIsKeptForTheNextFailover() {
+        assertFalse(shouldStopFailoverSourceLoading(StreamsUiState(isAnyLoading = false)))
+        assertTrue(shouldStopFailoverSourceLoading(StreamsUiState(isAnyLoading = true)))
+    }
+
     private fun runtime(
         controller: PlayerEngineController,
         failoverEnabled: Boolean = true,
         initialPositionMs: Long = 0L,
+        contentType: String = "movie",
+        videoId: String? = null,
     ) = PlayerScreenRuntime(
         PlayerScreenArgs(
             profileId = 1,
@@ -117,8 +198,8 @@ class PlayerStreamFailoverRuntimeTest {
             episodeNumber = null,
             episodeTitle = null,
             episodeThumbnail = null,
-            contentType = "movie",
-            videoId = null,
+            contentType = contentType,
+            videoId = videoId,
             parentMetaId = "tt2026",
             parentMetaType = "movie",
             providerAddonId = "test",
