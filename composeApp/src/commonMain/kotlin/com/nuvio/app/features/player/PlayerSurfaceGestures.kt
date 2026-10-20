@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntSize
 import com.nuvio.app.core.logging.InAppLogger
@@ -20,6 +21,7 @@ internal fun Modifier.playerSurfaceTapGestures(
     playerControlsLocked: Boolean,
     onSurfaceTap: State<(Offset) -> Unit>,
     onSurfaceDoubleTap: State<(Offset) -> Unit>,
+    activeSeekStackDirectionState: State<PlayerSeekDirection?>,
     activateHoldToSpeedState: State<() -> Unit>,
     deactivateHoldToSpeedState: State<() -> Unit>,
     revealLockedOverlayState: State<() -> Unit>,
@@ -50,6 +52,55 @@ internal fun Modifier.playerSurfaceTapGestures(
                 }
             } else null,
         )
+    }.playerSurfaceSeekStackTaps(
+        playbackGesturesEnabled = playbackGesturesEnabled,
+        doubleTapEnabled = gestureFlags.doubleTapEnabled,
+        playerControlsLocked = playerControlsLocked,
+        onSurfaceDoubleTap = onSurfaceDoubleTap,
+        activeSeekStackDirectionState = activeSeekStackDirectionState,
+    )
+
+/**
+ * While a double-tap seek is still stacking, a single tap on the same side adds one more step at
+ * once instead of waiting out the double-tap timeout (which would toggle the controls). It sits
+ * inside the tap detector and consumes the tap in the main pass, so the detector never sees it,
+ * while buttons drawn above the surface still get their taps first.
+ */
+private fun Modifier.playerSurfaceSeekStackTaps(
+    playbackGesturesEnabled: Boolean,
+    doubleTapEnabled: Boolean,
+    playerControlsLocked: Boolean,
+    onSurfaceDoubleTap: State<(Offset) -> Unit>,
+    activeSeekStackDirectionState: State<PlayerSeekDirection?>,
+): Modifier =
+    pointerInput(playbackGesturesEnabled, doubleTapEnabled, playerControlsLocked) {
+        if (!playbackGesturesEnabled || !doubleTapEnabled || playerControlsLocked) return@pointerInput
+        awaitEachGesture {
+            val down = awaitFirstDown(pass = PointerEventPass.Main)
+            val direction = activeSeekStackDirectionState.value ?: return@awaitEachGesture
+            val width = size.width.toFloat().takeIf { it > 0f } ?: return@awaitEachGesture
+            val tapDirection = when {
+                down.position.x < width * PlayerLeftGestureBoundary -> PlayerSeekDirection.Backward
+                down.position.x > width * PlayerRightGestureBoundary -> PlayerSeekDirection.Forward
+                else -> null
+            }
+            if (tapDirection != direction) return@awaitEachGesture
+            down.consume()
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Main)
+                if (event.changes.count { it.pressed } > 1) return@awaitEachGesture
+                val change = event.changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
+                if (!change.pressed) {
+                    change.consume()
+                    onSurfaceDoubleTap.value(down.position)
+                    return@awaitEachGesture
+                }
+                if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+                    return@awaitEachGesture
+                }
+                change.consume()
+            }
+        }
     }
 
 internal fun Modifier.playerSurfaceDragGestures(

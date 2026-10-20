@@ -177,6 +177,7 @@ internal class PlayerScreenRuntime(
     /** Speed the user chose this session (null = never chosen). In-memory only. */
     var sessionPlaybackSpeed by mutableStateOf<Float?>(null)
     var sessionSpeedAppliedKey by mutableStateOf<PlaybackKey?>(null)
+    var sessionSpeedAppliedController: PlayerEngineController? = null
     /** In-memory only: the sleep timer never outlives the player screen. */
     var sleepTimerMode by mutableStateOf<SleepTimerMode>(SleepTimerMode.Off)
     var sleepTimerPromptPending by mutableStateOf(false)

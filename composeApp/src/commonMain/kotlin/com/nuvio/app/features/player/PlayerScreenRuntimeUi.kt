@@ -238,6 +238,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 playerControlsLocked = gestureCallbacks.playerControlsLocked.value,
                 onSurfaceTap = gestureCallbacks.onSurfaceTap,
                 onSurfaceDoubleTap = gestureCallbacks.onSurfaceDoubleTap,
+                activeSeekStackDirectionState = gestureCallbacks.activeSeekStackDirection,
                 activateHoldToSpeedState = gestureCallbacks.activateHoldToSpeed,
                 deactivateHoldToSpeedState = gestureCallbacks.deactivateHoldToSpeed,
                 revealLockedOverlayState = gestureCallbacks.revealLockedOverlay,

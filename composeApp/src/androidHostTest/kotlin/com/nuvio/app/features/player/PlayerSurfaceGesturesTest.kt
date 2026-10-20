@@ -54,6 +54,8 @@ class PlayerSurfaceGesturesTest {
     private var seekPreviews = 0
     private var seekCommits = 0
     private var sideAdjustments = 0
+    private val seekStackDirection = mutableStateOf<PlayerSeekDirection?>(null)
+    private var doubleTapStartsSeekStack = false
     private val gestureController = object : PlayerGestureController {
         override fun currentBrightness() = 0.5f
         override fun currentVolume() = PlayerAudioLevel(0.5f, false)
@@ -90,7 +92,13 @@ class PlayerSurfaceGesturesTest {
                         gestureFlags = gestureFlags.value,
                         playerControlsLocked = false,
                         onSurfaceTap = rememberUpdatedState { _: Offset -> taps++ },
-                        onSurfaceDoubleTap = rememberUpdatedState { _: Offset -> doubleTaps++ },
+                        onSurfaceDoubleTap = rememberUpdatedState { offset: Offset ->
+                            doubleTaps++
+                            if (doubleTapStartsSeekStack && offset.x > 320f * PlayerRightGestureBoundary) {
+                                seekStackDirection.value = PlayerSeekDirection.Forward
+                            }
+                        },
+                        activeSeekStackDirectionState = seekStackDirection,
                         activateHoldToSpeedState = rememberUpdatedState { speedBoosts++ },
                         deactivateHoldToSpeedState = noop,
                         revealLockedOverlayState = noop,
@@ -226,6 +234,30 @@ class PlayerSurfaceGesturesTest {
         compose.runOnIdle {
             assertEquals(0, doubleTaps)
             assertEquals(0, speedBoosts)
+        }
+    }
+
+    @Test
+    fun singleTapsDuringAStackingSeekEachAddAStepWithoutTogglingControls() {
+        playbackReady.value = true
+        doubleTapStartsSeekStack = true
+        setContent()
+        val surface = compose.onNodeWithTag("surface")
+        surface.performTouchInput { doubleClick(Offset(width * 0.85f, centerY)) }
+        compose.runOnIdle { assertEquals(1, doubleTaps) }
+        surface.performTouchInput {
+            advanceEventTime(150L)
+            click(Offset(width * 0.85f, centerY))
+        }
+        compose.runOnIdle { assertEquals(2, doubleTaps, "third tap adds a step immediately") }
+        surface.performTouchInput {
+            advanceEventTime(150L)
+            click(Offset(width * 0.85f, centerY))
+        }
+        compose.mainClock.advanceTimeBy(1_000L)
+        compose.runOnIdle {
+            assertEquals(3, doubleTaps)
+            assertEquals(0, taps, "stacking taps must not toggle the controls")
         }
     }
 }

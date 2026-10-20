@@ -426,7 +426,7 @@
     <string name="compose_nav_search">Search</string>
     <string name="compose_player_audio_tracks">Audio Tracks</string>
     <string name="compose_player_audio_delay">Audio delay</string>
-    <string name="compose_player_audio_delay_unavailable">Audio delay is unavailable on this stream — switch to libmpv in Settings</string>
+    <string name="compose_player_audio_delay_unavailable">Audio delay is unavailable on this stream — switch to libmpv or turn off tunneling in Settings</string>
     <string name="compose_player_audio_delay_decrease">Decrease audio delay</string>
     <string name="compose_player_audio_delay_increase">Increase audio delay</string>
     <string name="compose_player_audio">Audio</string>

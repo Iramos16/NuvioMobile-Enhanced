@@ -176,6 +176,46 @@ class PlayerSleepTimerRuntimeTest {
     }
 
     @Test
+    fun playingAfterADismissedFireClearsAutoPlaySuppression() {
+        runtime.setSleepTimer(SleepTimerMode.Duration(endsAtMs = 1_000L))
+        runtime.onSleepTimerTick(nowMs = 1_000L)
+        runtime.playbackSnapshot = runtime.playbackSnapshot.copy(isPlaying = false)
+        assertTrue(runtime.sleepTimerSuppressAutoPlay)
+
+        runtime.dismissSleepPrompt(resume = false)
+        assertTrue(runtime.sleepTimerSuppressAutoPlay, "dismissing alone keeps the stop")
+
+        runtime.togglePlayback()
+        assertEquals(1, controller.plays)
+        assertFalse(runtime.sleepTimerSuppressAutoPlay, "autoplay is no longer blocked")
+    }
+
+    @Test
+    fun playWhileThePromptIsPendingKeepsSuppression() {
+        runtime.setSleepTimer(SleepTimerMode.Duration(endsAtMs = 1_000L))
+        runtime.onSleepTimerTick(nowMs = 1_000L)
+        runtime.setPlaybackPlaying(true)
+        assertTrue(runtime.sleepTimerSuppressAutoPlay)
+    }
+
+    @Test
+    fun partyLockArrivingMidFadeStillRestoresVolumeOnFire() {
+        controller.volume = 0.8f
+        runtime.setSleepTimer(SleepTimerMode.Duration(endsAtMs = 100_000L))
+        runtime.onSleepTimerTick(nowMs = 95_000L)
+        runtime.onSleepTimerTick(nowMs = 97_000L)
+        assertTrue(controller.volumeSets.last() < 0.8f, "fading")
+
+        runtime.sleepTimerPartyLocked = { true }
+        runtime.onSleepTimerTick(nowMs = 100_000L)
+
+        assertEquals(0, controller.pauses)
+        assertEquals(0.8f, controller.volumeSets.last())
+        assertNull(runtime.sleepFadeStartedAtMs)
+        assertTrue(runtime.sleepTimerPromptPending)
+    }
+
+    @Test
     fun promptGateHidesWhileMiniPlayerIsActive() {
         assertFalse(shouldShowSleepPrompt(pending = true, inPip = false, miniPlayerActive = true))
         assertFalse(shouldShowSleepPrompt(pending = true, inPip = true, miniPlayerActive = false))

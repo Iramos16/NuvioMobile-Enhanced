@@ -650,7 +650,9 @@ private fun PlayerHeader(
                                 text = sleepTimerLabel,
                                 color = Color.White,
                                 style = MaterialTheme.typography.labelLarge,
-                                modifier = Modifier.align(Alignment.CenterVertically),
+                                modifier = Modifier
+                                    .align(Alignment.CenterVertically)
+                                    .clickable(onClick = onSleepTimerClick),
                             )
                         }
                         PlayerHeaderIconButton(

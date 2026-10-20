@@ -19,6 +19,7 @@ import kotlin.time.TimeSource
 internal data class PlayerSurfaceGestureCallbacks(
     val onSurfaceTap: State<(Offset) -> Unit>,
     val onSurfaceDoubleTap: State<(Offset) -> Unit>,
+    val activeSeekStackDirection: State<PlayerSeekDirection?>,
     val activateHoldToSpeed: State<() -> Unit>,
     val deactivateHoldToSpeed: State<() -> Unit>,
     val showHorizontalSeekPreview: State<(Long, Long) -> Unit>,
@@ -164,6 +165,7 @@ internal fun PlayerScreenRuntime.showVolumeFeedback(level: PlayerAudioLevel) {
 }
 
 internal fun PlayerScreenRuntime.togglePlayback() {
+    if (!playbackSnapshot.isPlaying) clearSleepAutoPlaySuppressionOnPlay()
     if (isPartyControlLocked) {
         toggleOwnPlayback()
         return
@@ -185,6 +187,7 @@ internal fun PlayerScreenRuntime.togglePlayback() {
 /** Sets the requested state; system controls may send pause, skip and play in a row. */
 internal fun PlayerScreenRuntime.setPlaybackPlaying(playing: Boolean) {
     if (playing == shouldPlay) return
+    if (playing) clearSleepAutoPlaySuppressionOnPlay()
     if (isPartyControlLocked) {
         toggleOwnPlayback()
         return
@@ -406,6 +409,7 @@ internal fun PlayerScreenRuntime.rememberSurfaceGestureCallbacks(): PlayerSurfac
     return PlayerSurfaceGestureCallbacks(
         onSurfaceTap = onSurfaceTap,
         onSurfaceDoubleTap = onSurfaceDoubleTap,
+        activeSeekStackDirection = remember(this) { derivedStateOf { accumulatedSeekState?.direction } },
         activateHoldToSpeed = rememberUpdatedState(::activateHoldToSpeed),
         deactivateHoldToSpeed = rememberUpdatedState(::deactivateHoldToSpeed),
         showHorizontalSeekPreview = rememberUpdatedState(::showHorizontalSeekPreview),

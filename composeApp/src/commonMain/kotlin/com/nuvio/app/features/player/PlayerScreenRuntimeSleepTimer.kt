@@ -84,8 +84,9 @@ private fun PlayerScreenRuntime.fireSleepTimer(mode: SleepTimerMode) {
     if (!sleepTimerPartyLocked()) {
         runCatching { setPlaybackPlaying(false) }
             .onFailure { InAppLogger.warn("Player/SleepTimer", "pause failed: ${it.message}") }
-        restoreSleepFadeVolume()
     }
+    // Also when a party lock arrived mid-fade: the volume must not stay faded.
+    restoreSleepFadeVolume()
     sleepFadeStartedAtMs = null
     cancelNextEpisodeAutoPlay()
     sleepTimerSuppressAutoPlay = true
@@ -113,6 +114,14 @@ internal fun PlayerScreenRuntime.dismissSleepPrompt(resume: Boolean) {
         sleepTimerSuppressAutoPlay = false
         resumePlaybackAfterSleepPrompt()
     }
+}
+
+/**
+ * The user pressing play after a fired timer (once the prompt is gone) means they kept watching,
+ * so the fire no longer blocks autoplay at the end of the episode.
+ */
+internal fun PlayerScreenRuntime.clearSleepAutoPlaySuppressionOnPlay() {
+    if (!sleepTimerPromptPending) sleepTimerSuppressAutoPlay = false
 }
 
 private fun PlayerScreenRuntime.resumePlaybackAfterSleepPrompt() {
