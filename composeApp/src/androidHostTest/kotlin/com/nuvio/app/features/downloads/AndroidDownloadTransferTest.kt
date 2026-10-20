@@ -33,8 +33,9 @@ class AndroidDownloadTransferTest {
             val directory = temporary.newFolder()
             File(directory, "video.mkv.part").writeText("hello")
 
-            val output = transferAndroidDownload(downloadItem(server.url("/video").toString()), directory,
+            transferAndroidDownload(downloadItem(server.url("/video").toString()), FileDownloadSink(File(directory, "video.mkv.part")),
                 "\"version-1\"", onHeaders = { _, _ -> }, onProgress = { _, _ -> })
+            val output = File(directory, "video.mkv.part")
 
             assertEquals("hello world", output.readText())
             val request = server.takeRequest()
@@ -51,8 +52,9 @@ class AndroidDownloadTransferTest {
             server.enqueue(MockResponse().setBody("new file"))
             val directory = temporary.newFolder()
             File(directory, "video.mkv.part").writeText("old prefix")
-            val output = transferAndroidDownload(downloadItem(server.url("/video").toString()), directory,
+            transferAndroidDownload(downloadItem(server.url("/video").toString()), FileDownloadSink(File(directory, "video.mkv.part")),
                 null, onHeaders = { _, _ -> }, onProgress = { _, _ -> })
+            val output = File(directory, "video.mkv.part")
             assertEquals("new file", output.readText())
         }
     }
@@ -64,8 +66,9 @@ class AndroidDownloadTransferTest {
             server.enqueue(MockResponse().setBody("replacement"))
             val directory = temporary.newFolder()
             File(directory, "video.mkv.part").writeText("old prefix")
-            val output = transferAndroidDownload(downloadItem(server.url("/video").toString()), directory,
+            transferAndroidDownload(downloadItem(server.url("/video").toString()), FileDownloadSink(File(directory, "video.mkv.part")),
                 null, onHeaders = { _, _ -> }, onProgress = { _, _ -> })
+            val output = File(directory, "video.mkv.part")
             assertEquals("replacement", output.readText())
             assertEquals("bytes=10-", server.takeRequest().getHeader("Range"))
             assertNull(server.takeRequest().getHeader("Range"))
@@ -79,7 +82,7 @@ class AndroidDownloadTransferTest {
             val directory = temporary.newFolder()
             val partial = File(directory, "video.mkv.part").apply { writeText("hello") }
             assertFailsWith<IOException> {
-                transferAndroidDownload(downloadItem(server.url("/video").toString()), directory,
+                transferAndroidDownload(downloadItem(server.url("/video").toString()), FileDownloadSink(File(directory, "video.mkv.part")),
                     null, onHeaders = { _, _ -> }, onProgress = { _, _ -> })
             }
             assertEquals("hello", partial.readText())
@@ -92,7 +95,7 @@ class AndroidDownloadTransferTest {
             server.enqueue(MockResponse().setBody("abcdefghij").setSocketPolicy(SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY))
             val directory = temporary.newFolder()
             assertFailsWith<IOException> {
-                transferAndroidDownload(downloadItem(server.url("/video").toString()), directory,
+                transferAndroidDownload(downloadItem(server.url("/video").toString()), FileDownloadSink(File(directory, "video.mkv.part")),
                     null, onHeaders = { _, _ -> }, onProgress = { _, _ -> })
             }
             assertFalse(File(directory, "video.mkv").exists())
@@ -106,7 +109,7 @@ class AndroidDownloadTransferTest {
             server.enqueue(MockResponse().setBody("abcdefghij").throttleBody(1, 10, TimeUnit.SECONDS))
             val directory = temporary.newFolder()
             val task = async(Dispatchers.Default) {
-                transferAndroidDownload(downloadItem(server.url("/video").toString()), directory,
+                transferAndroidDownload(downloadItem(server.url("/video").toString()), FileDownloadSink(File(directory, "video.mkv.part")),
                     null, onHeaders = { _, _ -> }, onProgress = { _, _ -> })
             }
             withContext(Dispatchers.IO) { server.takeRequest(5, TimeUnit.SECONDS) }
