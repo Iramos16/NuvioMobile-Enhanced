@@ -31,6 +31,8 @@ internal expect object PlayerSettingsStorage {
     fun saveSeekPreviewEnabled(enabled: Boolean)
     fun loadMovieRecommendationsEnabled(): Boolean?
     fun saveMovieRecommendationsEnabled(enabled: Boolean)
+    fun loadStreamFailoverEnabled(): Boolean?
+    fun saveStreamFailoverEnabled(enabled: Boolean)
     fun loadAutoShowSubtitlesOnRewindEnabled(): Boolean?
     fun saveAutoShowSubtitlesOnRewindEnabled(enabled: Boolean)
     fun loadAutoShowSubtitlesOnMuteEnabled(): Boolean?

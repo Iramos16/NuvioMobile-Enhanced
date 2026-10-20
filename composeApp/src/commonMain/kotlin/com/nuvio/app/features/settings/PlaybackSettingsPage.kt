@@ -874,6 +874,14 @@ private fun PlaybackSettingsSection(
         ) {
             SettingsGroup(isTablet = isTablet) {
                 SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_stream_failover),
+                    description = stringResource(Res.string.settings_playback_stream_failover_description),
+                    checked = autoPlayPlayerSettings.streamFailoverEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setStreamFailoverEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
                     title = stringResource(Res.string.settings_playback_reuse_last_link),
                     description = stringResource(Res.string.settings_playback_reuse_last_link_description),
                     checked = streamReuseLastLinkEnabled,
