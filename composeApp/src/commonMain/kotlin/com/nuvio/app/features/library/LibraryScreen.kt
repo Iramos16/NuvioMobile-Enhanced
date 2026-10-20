@@ -137,6 +137,7 @@ import com.nuvio.app.features.tracking.TrackingRefreshIntent
 import com.nuvio.app.features.watched.WatchedClock
 import com.nuvio.app.features.watched.WatchedRepository
 import com.nuvio.app.features.watchprogress.CurrentDateProvider
+import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import com.nuvio.app.features.watching.application.WatchingState
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.addons.AddonsUiState
@@ -170,6 +171,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
+import nuvio.composeapp.generated.resources.library_filter_clear
+import nuvio.composeapp.generated.resources.library_filter_no_matches_message
+import nuvio.composeapp.generated.resources.library_filter_no_matches_title
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
@@ -211,10 +215,29 @@ fun LibraryScreen(
         WatchedRepository.uiState
     }.collectAsStateWithLifecycle()
     val fullyWatchedSeriesKeys by WatchedRepository.fullyWatchedSeriesKeys.collectAsStateWithLifecycle()
+    val watchProgressUiState by remember {
+        WatchProgressRepository.ensureLoaded()
+        WatchProgressRepository.uiState
+    }.collectAsStateWithLifecycle()
     val displaySettings by remember {
         LibraryDisplaySettingsRepository.ensureLoaded()
         LibraryDisplaySettingsRepository.uiState
     }.collectAsStateWithLifecycle()
+    val libraryWatchSnapshot = remember(watchedUiState, fullyWatchedSeriesKeys, watchProgressUiState.entries) {
+        buildLibraryWatchSnapshot(
+            watchedItems = watchedUiState.items,
+            watchedKeys = watchedUiState.watchedKeys,
+            fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
+            progressEntries = watchProgressUiState.entries,
+        )
+    }
+    val libraryFilters = remember(displaySettings.category, displaySettings.statusFilter, libraryWatchSnapshot) {
+        LibraryFilterSelection(
+            category = displaySettings.category,
+            statuses = displaySettings.statusFilter,
+            watch = libraryWatchSnapshot,
+        )
+    }
     val networkStatusUiState by NetworkStatusRepository.uiState.collectAsStateWithLifecycle()
     val unknownReleaseLabel = stringResource(Res.string.generic_unknown)
     var observedOfflineState by remember { mutableStateOf(false) }
@@ -280,10 +303,10 @@ fun LibraryScreen(
     }
     val providerOrders = rememberLibraryProviderOrders(uiState.sourceMode, orderListKeys, effectiveSortOption)
     val visibleSortOption = if (providerOrders.failed) LibrarySortOption.DEFAULT else effectiveSortOption
-    val sortedSections = remember(uiState.sections, displaySettings, uiState.sourceMode, sourceMode, providerOrders) {
+    val sortedSections = remember(uiState.sections, displaySettings, uiState.sourceMode, sourceMode, providerOrders, libraryFilters) {
         if (sourceMode == LibraryViewMode.Saved && displaySettings.layoutMode == LibraryLayoutMode.HORIZONTAL) {
             sortLibrarySections(
-                sections = uiState.sections,
+                sections = filterLibrarySections(uiState.sections, libraryFilters),
                 selected = visibleSortOption,
                 sourceMode = uiState.sourceMode,
                 providerOrders = providerOrders.ranks,
@@ -299,13 +322,14 @@ fun LibraryScreen(
         displaySettings,
         sourceMode,
         providerOrders,
+        libraryFilters,
     ) {
         if (sourceMode == LibraryViewMode.Saved && displaySettings.layoutMode == LibraryLayoutMode.VERTICAL) {
             buildLibraryVerticalProjection(
                 sections = uiState.sections,
                 sourceMode = uiState.sourceMode,
                 selectedSectionKey = selectedLibrarySectionKey,
-                filters = LibraryFilterSelection(),
+                filters = libraryFilters,
                 sortOption = visibleSortOption,
                 providerOrders = providerOrders.ranks,
             )
@@ -654,7 +678,8 @@ fun LibraryScreen(
                     else -> {
                         stickyHeader(
                             key = "library-saved-controls:${uiState.sourceMode}:" +
-                                "${displaySettings.layoutMode}:$effectiveSortOption",
+                                "${displaySettings.layoutMode}:$effectiveSortOption:" +
+                                "${displaySettings.category}:${displaySettings.statusFilter.sortedBy { it.ordinal }}",
                         ) {
                             Box(modifier = Modifier.fillMaxWidth()) {
                                 Box(
@@ -667,10 +692,13 @@ fun LibraryScreen(
                                     layoutMode = displaySettings.layoutMode,
                                     sourceMode = uiState.sourceMode,
                                     sortOption = effectiveSortOption,
+                                    filters = libraryFilters,
                                     verticalProjection = verticalProjection,
                                     onSectionSelected = { sectionKey ->
                                         selectedLibrarySectionKey = sectionKey
                                     },
+                                    onCategorySelected = LibraryDisplaySettingsRepository::setCategory,
+                                    onStatusesSelected = LibraryDisplaySettingsRepository::setStatusFilter,
                                     onSortSelected = LibraryDisplaySettingsRepository::setSortOption,
                                     modifier = libraryContentTransitionModifier()
                                         .padding(horizontal = 16.dp)
@@ -678,7 +706,21 @@ fun LibraryScreen(
                                 )
                             }
                         }
-                        when (displaySettings.layoutMode) {
+                        val nothingMatches = libraryFilters.isActive && when (displaySettings.layoutMode) {
+                            LibraryLayoutMode.HORIZONTAL -> sortedSections.isEmpty()
+                            LibraryLayoutMode.VERTICAL -> verticalProjection.entries.isEmpty()
+                        }
+                        if (nothingMatches) {
+                            item(key = "library-filter-no-matches") {
+                                HomeEmptyStateCard(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    title = stringResource(Res.string.library_filter_no_matches_title),
+                                    message = stringResource(Res.string.library_filter_no_matches_message),
+                                    actionLabel = stringResource(Res.string.library_filter_clear),
+                                    onActionClick = LibraryDisplaySettingsRepository::clearFilters,
+                                )
+                            }
+                        } else when (displaySettings.layoutMode) {
                             LibraryLayoutMode.HORIZONTAL -> librarySections(
                                 displaySections = librarySectionsDisplay,
                                 releaseInfoFor = releaseInfoFor,
