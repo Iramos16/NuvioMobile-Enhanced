@@ -12,6 +12,7 @@ import com.nuvio.app.features.watchprogress.WatchProgressClock
 import com.nuvio.app.features.watchprogress.WatchProgressPlaybackSession
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
+import com.nuvio.app.features.watching.domain.WatchedThreshold
 import com.nuvio.app.features.watching.domain.isShortPlaceholderDuration
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -266,7 +267,7 @@ private fun PlayerScreenRuntime.emitTrackingScrobbleTerminal(
     if (!shouldTrackWatchProgress) return
     if (isShortPlaceholderDuration(playbackSnapshot.durationMs)) return
     val provided = progressPercent
-    if (!hasRequestedScrobbleStartForCurrentItem && (provided ?: 0f) < 80f) return
+    if (!hasRequestedScrobbleStartForCurrentItem && !WatchedThreshold.isReached(provided ?: 0f)) return
 
     val percent = provided ?: currentPlaybackProgressPercent()
     val mediaSnapshot = currentTrackingMedia
@@ -292,12 +293,12 @@ internal fun PlayerScreenRuntime.emitStopScrobbleForCurrentProgress() {
     if (!shouldSendStopScrobble(hasRequestedScrobbleStartForCurrentItem, progressPercent)) {
         return
     }
-    if (progressPercent < 80f) {
+    if (!WatchedThreshold.isReached(progressPercent)) {
         emitTrackingScrobbleStop(progressPercent)
         return
     }
 
-    if (progressPercent >= 80f && !hasSentCompletionScrobbleForCurrentItem) {
+    if (!hasSentCompletionScrobbleForCurrentItem) {
         hasSentCompletionScrobbleForCurrentItem = true
         emitTrackingScrobbleStop(progressPercent)
     }
@@ -306,12 +307,12 @@ internal fun PlayerScreenRuntime.emitStopScrobbleForCurrentProgress() {
 internal fun shouldSendStopScrobble(
     hasActiveScrobble: Boolean,
     progressPercent: Float,
-): Boolean = hasActiveScrobble || progressPercent >= 80f
+): Boolean = hasActiveScrobble || WatchedThreshold.isReached(progressPercent)
 
 internal fun shouldUpdateTrackingScrobbleAfterSeek(
     hasActiveScrobble: Boolean,
     progressPercent: Float,
-): Boolean = hasActiveScrobble && progressPercent >= 1f && progressPercent < 80f
+): Boolean = hasActiveScrobble && progressPercent >= 1f && !WatchedThreshold.isReached(progressPercent)
 
 internal fun PlayerScreenRuntime.emitTrackingSeekScrobbleStart() {
     if (isShortPlaceholderDuration(playbackSnapshot.durationMs)) return

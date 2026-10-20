@@ -1316,6 +1316,8 @@
     <string name="settings_playback_mini_player_description">Ao sair do player, a reprodução continua em uma pequena janela flutuante. Toque nela para voltar à tela cheia.</string>
     <string name="settings_playback_private_viewing">Modo de visualização privada</string>
     <string name="settings_playback_private_viewing_description">Não salve o progresso de reprodução, a lista Continuar assistindo nem o status de conteúdo assistido. A reprodução também não será sincronizada com os serviços de acompanhamento conectados.</string>
+    <string name="settings_playback_watched_threshold">Marcar como assistido em</string>
+    <string name="settings_playback_watched_threshold_description">Quanto de um filme ou episódio você precisa assistir para que ele conte como assistido, saia de Continuar assistindo e seja marcado como assistido nos serviços de acompanhamento conectados.</string>
     <string name="mini_player_play">Reproduzir</string>
     <string name="mini_player_pause">Pausar</string>
     <string name="mini_player_close">Fechar mini player</string>

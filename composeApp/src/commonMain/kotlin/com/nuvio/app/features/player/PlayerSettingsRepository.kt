@@ -5,6 +5,7 @@ import com.nuvio.app.features.player.skip.AutoSkipSegmentType
 import com.nuvio.app.features.player.skip.NextEpisodeThresholdMode
 import com.nuvio.app.features.streams.StreamAutoPlayMode
 import com.nuvio.app.features.streams.StreamAutoPlaySource
+import com.nuvio.app.features.watching.domain.WatchedThreshold
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -96,6 +97,7 @@ data class PlayerSettingsUiState(
     val nextEpisodeThresholdMode: NextEpisodeThresholdMode = NextEpisodeThresholdMode.PERCENTAGE,
     val nextEpisodeThresholdPercent: Float = 99f,
     val nextEpisodeThresholdMinutesBeforeEnd: Float = 2f,
+    val watchedThresholdPercent: Int = WatchedThreshold.DEFAULT_PERCENT,
     val preloadNextEpisodeSources: Boolean = false,
     val miniPlayerEnabled: Boolean = true,
     val privateViewingEnabled: Boolean = false,
@@ -187,6 +189,7 @@ object PlayerSettingsRepository {
     private var nextEpisodeThresholdMode = NextEpisodeThresholdMode.PERCENTAGE
     private var nextEpisodeThresholdPercent = 99f
     private var nextEpisodeThresholdMinutesBeforeEnd = 2f
+    private var watchedThresholdPercent = WatchedThreshold.DEFAULT_PERCENT
     private var preloadNextEpisodeSources = false
     private var miniPlayerEnabled = true
     private var privateViewingEnabled = false
@@ -283,6 +286,7 @@ object PlayerSettingsRepository {
         nextEpisodeThresholdMode = NextEpisodeThresholdMode.PERCENTAGE
         nextEpisodeThresholdPercent = 99f
         nextEpisodeThresholdMinutesBeforeEnd = 2f
+        watchedThresholdPercent = WatchedThreshold.DEFAULT_PERCENT
         preloadNextEpisodeSources = false
         miniPlayerEnabled = true
         privateViewingEnabled = false
@@ -436,6 +440,9 @@ object PlayerSettingsRepository {
             ?: NextEpisodeThresholdMode.PERCENTAGE
         nextEpisodeThresholdPercent = PlayerSettingsStorage.loadNextEpisodeThresholdPercent() ?: 99f
         nextEpisodeThresholdMinutesBeforeEnd = PlayerSettingsStorage.loadNextEpisodeThresholdMinutesBeforeEnd() ?: 2f
+        watchedThresholdPercent = WatchedThreshold.normalize(
+            PlayerSettingsStorage.loadWatchedThresholdPercent() ?: WatchedThreshold.DEFAULT_PERCENT,
+        )
         preloadNextEpisodeSources = PlayerSettingsStorage.loadPreloadNextEpisodeSources() ?: false
         miniPlayerEnabled = PlayerSettingsStorage.loadMiniPlayerEnabled() ?: true
         privateViewingEnabled = PlayerSettingsStorage.loadPrivateViewingEnabled() ?: false
@@ -994,6 +1001,15 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveNextEpisodeThresholdPercent(percent)
     }
 
+    fun setWatchedThresholdPercent(percent: Int) {
+        ensureLoaded()
+        val normalized = WatchedThreshold.normalize(percent)
+        if (watchedThresholdPercent == normalized) return
+        watchedThresholdPercent = normalized
+        publish()
+        PlayerSettingsStorage.saveWatchedThresholdPercent(normalized)
+    }
+
     fun setNextEpisodeThresholdMinutesBeforeEnd(minutes: Float) {
         ensureLoaded()
         if (nextEpisodeThresholdMinutesBeforeEnd == minutes) return
@@ -1216,6 +1232,7 @@ object PlayerSettingsRepository {
     }
 
     private fun publish() {
+        WatchedThreshold.percent = watchedThresholdPercent
         _uiState.value = PlayerSettingsUiState(
             useLegacyPlayerLayout = useLegacyPlayerLayout,
             showLoadingOverlay = showLoadingOverlay,
@@ -1280,6 +1297,7 @@ object PlayerSettingsRepository {
             nextEpisodeThresholdMode = nextEpisodeThresholdMode,
             nextEpisodeThresholdPercent = nextEpisodeThresholdPercent,
             nextEpisodeThresholdMinutesBeforeEnd = nextEpisodeThresholdMinutesBeforeEnd,
+            watchedThresholdPercent = watchedThresholdPercent,
             preloadNextEpisodeSources = preloadNextEpisodeSources,
             miniPlayerEnabled = miniPlayerEnabled,
             privateViewingEnabled = privateViewingEnabled,

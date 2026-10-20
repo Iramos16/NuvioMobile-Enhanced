@@ -2,6 +2,7 @@ package com.nuvio.app.features.mdblist
 
 import com.nuvio.app.features.tracking.TrackingScrobbleAction
 import com.nuvio.app.features.tracking.TrackingScrobbleEvent
+import com.nuvio.app.features.watching.domain.WatchedThreshold
 
 class MdbListScrobbleService(
     private val api: MdbListApiClient,
@@ -12,7 +13,7 @@ class MdbListScrobbleService(
         sync.write(scope, setOf(MdbListSyncBucket.WATCHED, MdbListSyncBucket.PLAYBACK)) { snapshot ->
             val target = snapshot.mutationTarget(event.media) ?: return@write snapshot to Unit
             if (target.type == MdbListItemType.SHOW || !target.scrobbleCoordinatesResolved) return@write snapshot to Unit
-            val response = api.post("/scrobble/${action.wireValue}", target.scrobbleBody(event.progressPercent.coerceIn(0.0, 100.0)).toString(), scope)
+            val response = api.post("/scrobble/${action.wireValue}", target.scrobbleBody(mdbListScrobbleProgress(event.progressPercent)).toString(), scope)
             val receipt = decodeMdbListScrobbleReceipt(response, target, action, kotlin.time.Clock.System.now().toEpochMilliseconds())
             snapshot.applyScrobble(receipt) to Unit
         }
@@ -38,4 +39,14 @@ class MdbListScrobbleService(
             }
         }
     }
+}
+
+/**
+ * MDBList marks an item watched on pause as well as stop once progress reaches 80 %, so progress
+ * that has not reached the watched threshold yet is kept just under that cutoff.
+ */
+private fun mdbListScrobbleProgress(progressPercent: Double): Double {
+    val progress = progressPercent.coerceIn(0.0, 100.0)
+    val providerCutoff = MdbListProgressProjection.PROVIDER_WATCHED_PERCENT.toDouble()
+    return if (progress >= providerCutoff && !WatchedThreshold.isReached(progress)) providerCutoff - 0.01 else progress
 }

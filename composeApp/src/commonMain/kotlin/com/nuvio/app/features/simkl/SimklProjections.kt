@@ -16,6 +16,7 @@ import com.nuvio.app.features.watchprogress.WatchProgressEntry
 import com.nuvio.app.features.watchprogress.WatchProgressSourceSimklPlayback
 import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
 import kotlinx.atomicfu.atomic
+import com.nuvio.app.features.watching.domain.WatchedThreshold
 
 internal data class SimklWatchedProjection(
     val items: List<WatchedItem>,
@@ -456,7 +457,7 @@ internal fun SimklPlaybackSession.toWatchProgressEntry(
         lastPositionMs = positionMs,
         durationMs = durationMs,
         lastUpdatedEpochMs = updatedAt,
-        isCompleted = normalizedProgress >= SIMKL_WATCHED_THRESHOLD_PERCENT,
+        isCompleted = WatchedThreshold.isReached(normalizedProgress),
         progressPercent = normalizedProgress.toFloat(),
         source = WatchProgressSourceSimklPlayback,
         trackingProviderId = TrackingProviderId.SIMKL.storageId,
@@ -778,4 +779,3 @@ private val SIMKL_UTC_PATTERN = Regex(
     RegexOption.IGNORE_CASE,
 )
 
-private const val SIMKL_WATCHED_THRESHOLD_PERCENT = 80.0

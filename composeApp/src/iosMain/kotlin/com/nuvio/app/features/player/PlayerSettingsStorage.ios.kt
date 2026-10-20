@@ -83,6 +83,7 @@ actual object PlayerSettingsStorage {
     private const val nextEpisodeThresholdModeKey = "next_episode_threshold_mode"
     private const val nextEpisodeThresholdPercentKey = "next_episode_threshold_percent_v2"
     private const val nextEpisodeThresholdMinutesBeforeEndKey = "next_episode_threshold_minutes_before_end_v2"
+    private const val watchedThresholdPercentKey = "watched_threshold_percent"
     private const val preloadNextEpisodeSourcesKey = "preload_next_episode_sources"
     private const val miniPlayerEnabledKey = "mini_player_enabled"
     private const val privateViewingEnabledKey = "private_viewing_enabled"
@@ -160,6 +161,7 @@ actual object PlayerSettingsStorage {
         nextEpisodeThresholdModeKey,
         nextEpisodeThresholdPercentKey,
         nextEpisodeThresholdMinutesBeforeEndKey,
+        watchedThresholdPercentKey,
         preloadNextEpisodeSourcesKey,
         miniPlayerEnabledKey,
         useLibassKey,
@@ -939,6 +941,12 @@ actual object PlayerSettingsStorage {
         NSUserDefaults.standardUserDefaults.setFloat(percent, forKey = ProfileScopedKey.of(nextEpisodeThresholdPercentKey))
     }
 
+    actual fun loadWatchedThresholdPercent(): Int? = loadInt(watchedThresholdPercentKey)
+
+    actual fun saveWatchedThresholdPercent(percent: Int) {
+        saveInt(watchedThresholdPercentKey, percent)
+    }
+
     actual fun loadNextEpisodeThresholdMinutesBeforeEnd(): Float? {
         val defaults = NSUserDefaults.standardUserDefaults
         val key = ProfileScopedKey.of(nextEpisodeThresholdMinutesBeforeEndKey)
@@ -1188,6 +1196,7 @@ actual object PlayerSettingsStorage {
         loadNextEpisodeThresholdMode()?.let { put(nextEpisodeThresholdModeKey, encodeSyncString(it)) }
         loadNextEpisodeThresholdPercent()?.let { put(nextEpisodeThresholdPercentKey, encodeSyncFloat(it)) }
         loadNextEpisodeThresholdMinutesBeforeEnd()?.let { put(nextEpisodeThresholdMinutesBeforeEndKey, encodeSyncFloat(it)) }
+        loadWatchedThresholdPercent()?.let { put(watchedThresholdPercentKey, encodeSyncInt(it)) }
         loadPreloadNextEpisodeSources()?.let { put(preloadNextEpisodeSourcesKey, encodeSyncBoolean(it)) }
         loadMiniPlayerEnabled()?.let { put(miniPlayerEnabledKey, encodeSyncBoolean(it)) }
         loadUseLibass()?.let { put(useLibassKey, encodeSyncBoolean(it)) }
@@ -1275,6 +1284,7 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncString(nextEpisodeThresholdModeKey)?.let(::saveNextEpisodeThresholdMode)
         payload.decodeSyncFloat(nextEpisodeThresholdPercentKey)?.let(::saveNextEpisodeThresholdPercent)
         payload.decodeSyncFloat(nextEpisodeThresholdMinutesBeforeEndKey)?.let(::saveNextEpisodeThresholdMinutesBeforeEnd)
+        payload.decodeSyncInt(watchedThresholdPercentKey)?.let(::saveWatchedThresholdPercent)
         payload.decodeSyncBoolean(preloadNextEpisodeSourcesKey)?.let(::savePreloadNextEpisodeSources)
         payload.decodeSyncBoolean(miniPlayerEnabledKey)?.let(::saveMiniPlayerEnabled)
         payload.decodeSyncBoolean(useLibassKey)?.let(::saveUseLibass)

@@ -15,6 +15,7 @@ import com.nuvio.app.features.tracking.TrackingScrobbler
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import com.nuvio.app.features.watching.domain.WatchedThreshold
 
 class AniListTrackingWrites internal constructor(
     private val sync: AniListSyncRepository,
@@ -26,7 +27,7 @@ class AniListTrackingWrites internal constructor(
 
     override suspend fun scrobble(profileId: Int, action: TrackingScrobbleAction, event: TrackingScrobbleEvent) {
         if (action != TrackingScrobbleAction.STOP) return
-        if (event.progressPercent < COMPLETION_THRESHOLD_PERCENT) return
+        if (!isCompletionProgress(event.progressPercent)) return
         val scope = scope(profileId)
         val target = resolve(event.media) ?: return
         writeLock.withLock {
@@ -198,6 +199,7 @@ class AniListTrackingWrites internal constructor(
     }
 
     companion object {
-        const val COMPLETION_THRESHOLD_PERCENT = 80.0
+        internal fun isCompletionProgress(progressPercent: Double): Boolean =
+            WatchedThreshold.isReached(progressPercent)
     }
 }

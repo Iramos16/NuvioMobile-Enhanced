@@ -6,11 +6,13 @@ import com.nuvio.app.features.tracking.TrackingMediaKind
 import com.nuvio.app.features.tracking.TrackingMediaReference
 import com.nuvio.app.features.tracking.TrackingScrobbleAction
 import com.nuvio.app.features.tracking.TrackingScrobbleEvent
+import com.nuvio.app.features.watching.domain.WatchedThreshold
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlin.test.AfterTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -18,6 +20,11 @@ import kotlin.test.Test
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class MdbListScrobbleServiceTest {
+    @AfterTest
+    fun resetWatchedThreshold() {
+        WatchedThreshold.percent = WatchedThreshold.DEFAULT_PERCENT
+    }
+
     @Test
     fun `fractional player progress survives start pause resume and exit for movies and episodes`() = runTest {
         val movie = event(0.0).media
@@ -65,6 +72,7 @@ class MdbListScrobbleServiceTest {
 
     @Test
     fun `both pause and stop save below eighty and mark watched at eighty`() = runTest {
+        WatchedThreshold.percent = WatchedThreshold.MIN_PERCENT
         for (action in listOf(TrackingScrobbleAction.PAUSE, TrackingScrobbleAction.STOP)) {
             for (progress in listOf(79.99, 80.0, 100.0)) {
                 val harness = MdbListSyncTestHarness(backgroundScope)
