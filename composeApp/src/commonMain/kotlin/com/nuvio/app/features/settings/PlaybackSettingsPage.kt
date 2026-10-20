@@ -532,6 +532,8 @@ private fun PlaybackSettingsSection(
                     onClick = { showSkipBackDialog = true },
                 )
                 SettingsGroupDivider(isTablet = isTablet)
+                val touchGesturesControlsEnabled =
+                    touchGesturesEnabled && !autoPlayPlayerSettings.externalPlayerEnabled
                 SettingsSwitchRow(
                     title = stringResource(Res.string.settings_playback_touch_gestures),
                     description = stringResource(Res.string.settings_playback_touch_gestures_description),
@@ -555,7 +557,7 @@ private fun PlaybackSettingsSection(
                     title = stringResource(Res.string.settings_playback_brightness_swipe),
                     description = stringResource(Res.string.settings_playback_brightness_swipe_description),
                     checked = autoPlayPlayerSettings.brightnessSwipeEnabled,
-                    enabled = touchGesturesEnabled && !autoPlayPlayerSettings.externalPlayerEnabled,
+                    enabled = touchGesturesControlsEnabled,
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setBrightnessSwipeEnabled,
                 )
@@ -564,7 +566,7 @@ private fun PlaybackSettingsSection(
                     title = stringResource(Res.string.settings_playback_volume_swipe),
                     description = stringResource(Res.string.settings_playback_volume_swipe_description),
                     checked = autoPlayPlayerSettings.volumeSwipeEnabled,
-                    enabled = touchGesturesEnabled && !autoPlayPlayerSettings.externalPlayerEnabled,
+                    enabled = touchGesturesControlsEnabled,
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setVolumeSwipeEnabled,
                 )
@@ -573,7 +575,7 @@ private fun PlaybackSettingsSection(
                     title = stringResource(Res.string.settings_playback_double_tap_seek),
                     description = stringResource(Res.string.settings_playback_double_tap_seek_description),
                     checked = autoPlayPlayerSettings.doubleTapSeekEnabled,
-                    enabled = touchGesturesEnabled && !autoPlayPlayerSettings.externalPlayerEnabled,
+                    enabled = touchGesturesControlsEnabled,
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setDoubleTapSeekEnabled,
                 )
@@ -582,7 +584,7 @@ private fun PlaybackSettingsSection(
                     title = stringResource(Res.string.settings_playback_swap_gesture_sides),
                     description = stringResource(Res.string.settings_playback_swap_gesture_sides_description),
                     checked = autoPlayPlayerSettings.swapGestureSides,
-                    enabled = touchGesturesEnabled && !autoPlayPlayerSettings.externalPlayerEnabled,
+                    enabled = touchGesturesControlsEnabled,
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setSwapGestureSides,
                 )
@@ -591,11 +593,11 @@ private fun PlaybackSettingsSection(
                     title = stringResource(Res.string.settings_playback_hold_to_speed),
                     description = stringResource(Res.string.settings_playback_hold_to_speed_description),
                     checked = holdToSpeedEnabled,
-                    enabled = !autoPlayPlayerSettings.externalPlayerEnabled,
+                    enabled = touchGesturesControlsEnabled,
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setHoldToSpeedEnabled,
                 )
-                if (holdToSpeedEnabled && !autoPlayPlayerSettings.externalPlayerEnabled) {
+                if (holdToSpeedEnabled && touchGesturesControlsEnabled) {
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
                         title = stringResource(Res.string.settings_playback_hold_speed),
