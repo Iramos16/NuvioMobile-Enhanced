@@ -367,12 +367,10 @@
     <string name="compose_player_resize_fill">Remplir</string>
     <string name="compose_player_resize_fit">Ajuster</string>
     <string name="compose_player_resize_zoom">Zoom</string>
-    <string name="compose_player_seek_back_10">Reculer de 10 secondes</string>
     <string name="compose_player_seek_delta_backward">-%1$ds</string>
     <string name="compose_player_seek_delta_forward">+%1$ds</string>
     <string name="compose_player_seek_feedback_backward">-%1$ds</string>
     <string name="compose_player_seek_feedback_forward">+%1$ds</string>
-    <string name="compose_player_seek_forward_10">Avancer de 10 secondes</string>
     <string name="compose_player_sources">Sources</string>
     <string name="compose_player_style">Style</string>
     <string name="compose_player_select_addon_subtitle_first">Sélectionnez d’abord un sous-titre d’addon</string>

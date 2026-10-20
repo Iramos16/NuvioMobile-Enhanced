@@ -375,12 +375,10 @@
     <string name="compose_player_resize_fill">Umple</string>
     <string name="compose_player_resize_fit">Potrivește</string>
     <string name="compose_player_resize_zoom">Zoom</string>
-    <string name="compose_player_seek_back_10">Sari înapoi 10 secunde</string>
     <string name="compose_player_seek_delta_backward">-%1$ds</string>
     <string name="compose_player_seek_delta_forward">+%1$ds</string>
     <string name="compose_player_seek_feedback_backward">-%1$ds</string>
     <string name="compose_player_seek_feedback_forward">+%1$ds</string>
-    <string name="compose_player_seek_forward_10">Sari înainte 10 secunde</string>
     <string name="compose_player_sources">Surse</string>
     <string name="compose_player_style">Stil</string>
     <string name="compose_player_select_addon_subtitle_first">Selectează mai întâi o subtitrare din extensii</string>

@@ -43,6 +43,8 @@ data class PlayerSettingsUiState(
     val holdToSpeedValue: Float = 2f,
     val touchGesturesEnabled: Boolean = true,
     val swipeToSeekEnabled: Boolean = true,
+    val seekForwardSeconds: Int = 10,
+    val seekBackSeconds: Int = 10,
     val seekPreviewEnabled: Boolean = true,
     val movieRecommendationsEnabled: Boolean = true,
     val autoShowSubtitlesOnRewindEnabled: Boolean = true,
@@ -134,6 +136,8 @@ object PlayerSettingsRepository {
     private var holdToSpeedValue = 2f
     private var touchGesturesEnabled = true
     private var swipeToSeekEnabled = true
+    private var seekForwardSeconds = 10
+    private var seekBackSeconds = 10
     private var seekPreviewEnabled = true
     private var movieRecommendationsEnabled = true
     private var autoShowSubtitlesOnRewindEnabled = true
@@ -230,6 +234,8 @@ object PlayerSettingsRepository {
         holdToSpeedValue = 2f
         touchGesturesEnabled = true
         swipeToSeekEnabled = true
+        seekForwardSeconds = 10
+        seekBackSeconds = 10
         seekPreviewEnabled = true
         movieRecommendationsEnabled = true
         autoShowSubtitlesOnRewindEnabled = true
@@ -321,6 +327,8 @@ object PlayerSettingsRepository {
         holdToSpeedValue = PlayerSettingsStorage.loadHoldToSpeedValue() ?: 2f
         touchGesturesEnabled = PlayerSettingsStorage.loadTouchGesturesEnabled() ?: true
         swipeToSeekEnabled = PlayerSettingsStorage.loadSwipeToSeekEnabled() ?: true
+        seekForwardSeconds = normalizeSeekStepSeconds(PlayerSettingsStorage.loadSeekForwardSeconds())
+        seekBackSeconds = normalizeSeekStepSeconds(PlayerSettingsStorage.loadSeekBackSeconds())
         seekPreviewEnabled = PlayerSettingsStorage.loadSeekPreviewEnabled() ?: true
         movieRecommendationsEnabled = PlayerSettingsStorage.loadMovieRecommendationsEnabled() ?: true
         autoShowSubtitlesOnRewindEnabled = PlayerSettingsStorage.loadAutoShowSubtitlesOnRewindEnabled() ?: true
@@ -549,6 +557,24 @@ object PlayerSettingsRepository {
         swipeToSeekEnabled = enabled
         publish()
         PlayerSettingsStorage.saveSwipeToSeekEnabled(enabled)
+    }
+
+    fun setSeekForwardSeconds(seconds: Int) {
+        ensureLoaded()
+        val normalized = normalizeSeekStepSeconds(seconds)
+        if (seekForwardSeconds == normalized) return
+        seekForwardSeconds = normalized
+        publish()
+        PlayerSettingsStorage.saveSeekForwardSeconds(normalized)
+    }
+
+    fun setSeekBackSeconds(seconds: Int) {
+        ensureLoaded()
+        val normalized = normalizeSeekStepSeconds(seconds)
+        if (seekBackSeconds == normalized) return
+        seekBackSeconds = normalized
+        publish()
+        PlayerSettingsStorage.saveSeekBackSeconds(normalized)
     }
 
     fun setSeekPreviewEnabled(enabled: Boolean) {
@@ -1227,6 +1253,8 @@ object PlayerSettingsRepository {
             holdToSpeedValue = holdToSpeedValue,
             touchGesturesEnabled = touchGesturesEnabled,
             swipeToSeekEnabled = swipeToSeekEnabled,
+            seekForwardSeconds = seekForwardSeconds,
+            seekBackSeconds = seekBackSeconds,
             seekPreviewEnabled = seekPreviewEnabled,
             movieRecommendationsEnabled = movieRecommendationsEnabled,
             autoShowSubtitlesOnRewindEnabled = autoShowSubtitlesOnRewindEnabled,

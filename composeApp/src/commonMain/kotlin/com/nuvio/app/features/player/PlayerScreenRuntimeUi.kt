@@ -475,8 +475,10 @@ private fun PlayerScreenRuntime.RenderPlayerControls(isEpisode: Boolean) {
             },
             partyActive = partyActive,
             onTogglePlayback = { togglePlayback() },
-            onSeekBack = { seekBy(-10_000L) },
-            onSeekForward = { seekBy(10_000L) },
+            seekBackSeconds = playerSettingsUiState.seekBackSeconds,
+            seekForwardSeconds = playerSettingsUiState.seekForwardSeconds,
+            onSeekBack = { seekBy(-seekStepMs(PlayerSeekDirection.Backward)) },
+            onSeekForward = { seekBy(seekStepMs(PlayerSeekDirection.Forward)) },
             onResizeModeClick = { cycleResizeMode() },
             onSpeedClick = if (!isLiveTvPlayback) {
                 {

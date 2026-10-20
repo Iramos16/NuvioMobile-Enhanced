@@ -459,12 +459,10 @@
     <string name="compose_player_resize_fill">ফিল</string>
     <string name="compose_player_resize_fit">ফিট</string>
     <string name="compose_player_resize_zoom">জুম</string>
-    <string name="compose_player_seek_back_10">10 সেকেন্ড পেছনে যান</string>
     <string name="compose_player_seek_delta_backward">-%1$ds</string>
     <string name="compose_player_seek_delta_forward">+%1$ds</string>
     <string name="compose_player_seek_feedback_backward">-%1$ds</string>
     <string name="compose_player_seek_feedback_forward">+%1$ds</string>
-    <string name="compose_player_seek_forward_10">10 সেকেন্ড এগিয়ে যান</string>
     <string name="compose_player_sources">সোর্স</string>
     <string name="compose_player_style">স্টাইল</string>
     <string name="compose_player_select_addon_subtitle_first">প্রথমে একটি অ্যাডন সাবটাইটেল নির্বাচন করুন</string>

@@ -29,6 +29,8 @@ actual object PlayerSettingsStorage {
     private const val holdToSpeedValueKey = "hold_to_speed_value"
     private const val touchGesturesEnabledKey = "touch_gestures_enabled"
     private const val swipeToSeekEnabledKey = "swipe_to_seek_enabled"
+    private const val seekForwardSecondsKey = "seek_forward_seconds"
+    private const val seekBackSecondsKey = "seek_back_seconds"
     private const val seekPreviewEnabledKey = "seek_preview_enabled"
     private const val movieRecommendationsEnabledKey = "movie_recommendations_enabled"
     private const val autoShowSubtitlesOnRewindEnabledKey = "auto_show_subtitles_on_rewind_enabled"
@@ -326,6 +328,18 @@ actual object PlayerSettingsStorage {
 
     actual fun saveTouchGesturesEnabled(enabled: Boolean) {
         saveBoolean(touchGesturesEnabledKey, enabled)
+    }
+
+    actual fun loadSeekForwardSeconds(): Int? = loadInt(seekForwardSecondsKey)
+
+    actual fun saveSeekForwardSeconds(seconds: Int) {
+        saveInt(seekForwardSecondsKey, seconds)
+    }
+
+    actual fun loadSeekBackSeconds(): Int? = loadInt(seekBackSecondsKey)
+
+    actual fun saveSeekBackSeconds(seconds: Int) {
+        saveInt(seekBackSecondsKey, seconds)
     }
 
     actual fun loadSwipeToSeekEnabled(): Boolean? = loadBoolean(swipeToSeekEnabledKey)
@@ -1137,6 +1151,8 @@ actual object PlayerSettingsStorage {
         loadHoldToSpeedValue()?.let { put(holdToSpeedValueKey, encodeSyncFloat(it)) }
         loadTouchGesturesEnabled()?.let { put(touchGesturesEnabledKey, encodeSyncBoolean(it)) }
         loadSwipeToSeekEnabled()?.let { put(swipeToSeekEnabledKey, encodeSyncBoolean(it)) }
+        loadSeekForwardSeconds()?.let { put(seekForwardSecondsKey, encodeSyncInt(it)) }
+        loadSeekBackSeconds()?.let { put(seekBackSecondsKey, encodeSyncInt(it)) }
         loadMovieRecommendationsEnabled()?.let { put(movieRecommendationsEnabledKey, encodeSyncBoolean(it)) }
         loadAutoShowSubtitlesOnRewindEnabled()?.let { put(autoShowSubtitlesOnRewindEnabledKey, encodeSyncBoolean(it)) }
         loadAutoShowSubtitlesOnMuteEnabled()?.let { put(autoShowSubtitlesOnMuteEnabledKey, encodeSyncBoolean(it)) }
@@ -1224,6 +1240,8 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncFloat(holdToSpeedValueKey)?.let(::saveHoldToSpeedValue)
         payload.decodeSyncBoolean(touchGesturesEnabledKey)?.let(::saveTouchGesturesEnabled)
         payload.decodeSyncBoolean(swipeToSeekEnabledKey)?.let(::saveSwipeToSeekEnabled)
+        payload.decodeSyncInt(seekForwardSecondsKey)?.let(::saveSeekForwardSeconds)
+        payload.decodeSyncInt(seekBackSecondsKey)?.let(::saveSeekBackSeconds)
         payload.decodeSyncBoolean(movieRecommendationsEnabledKey)?.let(::saveMovieRecommendationsEnabled)
         payload.decodeSyncBoolean(autoShowSubtitlesOnRewindEnabledKey)?.let(::saveAutoShowSubtitlesOnRewindEnabled)
         payload.decodeSyncBoolean(autoShowSubtitlesOnMuteEnabledKey)?.let(::saveAutoShowSubtitlesOnMuteEnabled)
