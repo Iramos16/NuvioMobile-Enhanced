@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.TimeZone
+import kotlin.concurrent.Volatile
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -161,7 +162,30 @@ class WatchHistoryRepositoryTest {
         runBlocking { controller.refresh() }
         val state = controller.awaitState { it.ids() == listOf("n") }
         assertTrue(state.failedSources.isEmpty())
-        assertTrue(store.payloads[1].orEmpty().contains("\"TRAKT\"").not())
+    }
+
+    @Test
+    fun refreshWithTransientConnectedSet_keepsUnpulledSlices() {
+        val gateway = FakeGateway(setOf(NUVIO)).apply { results[NUVIO] = { listOf(item("n", 100)) } }
+        val store = FakeStore().apply { payloads[1] = cached(TRAKT to listOf(item("t", 900))) }
+        val controller = controller(gateway, store)
+        runBlocking { controller.refresh() }
+        assertEquals(listOf("t"), decodeStoredWatchHistory(store.payloads[1]).sources["TRAKT"].orEmpty().map { it.id })
+    }
+
+    @Test
+    fun profileSwitchDuringRefresh_doesNotSaveIntoOldProfile() {
+        val profile = MutableStateFlow(1)
+        val gateway = FakeGateway(setOf(NUVIO)).apply {
+            results[NUVIO] = {
+                profile.value = 2
+                listOf(item("from-profile-two", 100))
+            }
+        }
+        val store = FakeStore().apply { payloads[1] = cached(NUVIO to listOf(item("one", 100))) }
+        val controller = controller(gateway, store, profile = profile)
+        runBlocking { controller.refresh() }
+        assertEquals(listOf("one"), decodeStoredWatchHistory(store.payloads[1]).sources["NUVIO"].orEmpty().map { it.id })
     }
 
     @Test
@@ -182,5 +206,47 @@ class WatchHistoryRepositoryTest {
         )
         runBlocking { notStarted.refresh() }
         assertTrue(decodeStoredWatchHistory(store.payloads[1]).sources["SIMKL"].orEmpty().isNotEmpty())
+    }
+
+    /** First load blocks until released, so the start-up cache read can land after a refresh. */
+    private class GatedStore(private val initial: String) : WatchHistoryPayloadStore {
+        @Volatile var loads = 0
+        @Volatile var released = false
+        @Volatile var firstLoadDone = false
+        @Volatile var saved: String? = null
+        override fun load(profileId: Int): String? {
+            val call = ++loads
+            if (call == 1) {
+                while (!released) Unit
+                return initial.also { firstLoadDone = true }
+            }
+            return saved ?: initial
+        }
+        override fun save(profileId: Int, payload: String) {
+            saved = payload
+        }
+    }
+
+    @Test
+    fun lateStartupCacheRead_doesNotOverwriteFresherRefresh() {
+        val gateway = FakeGateway(setOf(NUVIO)).apply { results[NUVIO] = { listOf(item("fresh", 100)) } }
+        val store = GatedStore(initial = cached(NUVIO to listOf(item("stale", 50))))
+        val controller = WatchHistoryController(
+            gateway = gateway,
+            store = store,
+            policy = MutableStateFlow(WatchHistoryMergePolicy.MOST_RECENT),
+            profileIds = MutableStateFlow(1),
+            timeZone = { TimeZone.UTC },
+            scope = scope,
+            nowEpochMs = { 5_000L },
+        )
+        controller.start()
+        runBlocking {
+            withTimeout(5_000) { while (store.loads < 1) kotlinx.coroutines.yield() }
+            controller.refresh()
+            store.released = true
+            withTimeout(5_000) { while (!store.firstLoadDone) kotlinx.coroutines.yield() }
+        }
+        assertEquals(listOf("fresh"), controller.awaitState { it.ids() == listOf("fresh") }.ids())
     }
 }

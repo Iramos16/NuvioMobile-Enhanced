@@ -77,8 +77,15 @@ internal fun mergeWatchHistory(
             } else {
                 watchCandidates.best()
             }
+            // Some trackers (e.g. Trakt) carry no artwork; borrow it from another source.
+            val item = if (winner.item.poster.isNullOrBlank()) {
+                watchCandidates.firstNotNullOfOrNull { it.item.poster?.takeIf(String::isNotBlank) }
+                    ?.let { winner.item.copy(poster = it) } ?: winner.item
+            } else {
+                winner.item
+            }
             WatchHistoryEntry(
-                item = winner.item,
+                item = item,
                 primarySource = winner.source,
                 sources = watchCandidates.mapTo(linkedSetOf()) { it.source },
                 watchedAtEpochMs = winner.at,

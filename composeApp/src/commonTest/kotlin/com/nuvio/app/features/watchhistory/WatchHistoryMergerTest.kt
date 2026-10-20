@@ -192,4 +192,17 @@ class WatchHistoryMergerTest {
         assertEquals(listOf("a", "b"), a.map { it.item.id })
         assertEquals(a, b)
     }
+
+    @Test
+    fun winnerWithoutPoster_borrowsPosterFromOtherSource() {
+        val merged = mergeWatchHistory(
+            listOf(
+                source(TRAKT, item("a", at = 200)),
+                source(SIMKL, item("a", at = 100).copy(poster = "https://img/a.jpg")),
+            ),
+            MOST_RECENT,
+        ).single()
+        assertEquals(TRAKT, merged.primarySource)
+        assertEquals("https://img/a.jpg", merged.item.poster)
+    }
 }

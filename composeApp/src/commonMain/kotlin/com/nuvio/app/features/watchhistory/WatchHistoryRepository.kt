@@ -3,11 +3,15 @@ package com.nuvio.app.features.watchhistory
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.time.EpisodeReleaseDatePlatform
 import com.nuvio.app.core.tracking.ensureTrackingProvidersRegistered
+import com.nuvio.app.features.anilist.AniListTracker
 import com.nuvio.app.features.profiles.ProfileRepository
+import com.nuvio.app.features.simkl.SimklSyncRepository
 import com.nuvio.app.features.tracking.TrackingProviderRegistry
 import com.nuvio.app.features.tracking.TrackingSettingsRepository
+import com.nuvio.app.features.trakt.TraktAuthRepository
 import com.nuvio.app.features.watched.WatchedItem
 import com.nuvio.app.features.watched.WatchedRepository
+import com.nuvio.app.features.wetrakr.WeTrakrTracker
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +26,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.datetime.TimeZone
@@ -93,15 +98,31 @@ private object TrackingWatchHistorySourceGateway : WatchHistorySourceGateway {
         }
     }
 
+    /**
+     * Adapters degrade to an empty or stale projection instead of throwing when offline or
+     * unauthorized. Here that must count as a failure, or the cached slice would be replaced.
+     */
     override suspend fun pull(id: WatchHistorySourceId, profileId: Int): List<WatchedItem> {
         if (id == WatchHistorySourceId.NUVIO) {
             WatchedRepository.ensureLoaded()
             return WatchedRepository.nuvioHistorySnapshot()
         }
+        if (profileId != ProfileRepository.activeProfileId) error("${id.name}: profile changed")
         val provider = TrackingProviderRegistry.connectedWatchedProviders()
             .firstOrNull { WatchHistorySourceId.fromTrackingProvider(it.providerId) == id }
-            ?: return emptyList()
-        return provider.pull(profileId, PULL_PAGE_SIZE)
+            ?: error("${id.name}: not connected")
+        if (id == WatchHistorySourceId.TRAKT && TraktAuthRepository.authorizedHeaders(profileId) == null) {
+            error("TRAKT: not authorized")
+        }
+        val items = provider.pull(profileId, PULL_PAGE_SIZE)
+        val syncError = when (id) {
+            WatchHistorySourceId.SIMKL -> SimklSyncRepository.state.value.errorMessage
+            WatchHistorySourceId.ANILIST -> AniListTracker.sync.state.value.error?.toString()
+            WatchHistorySourceId.WETRAKR -> WeTrakrTracker.sync.state.value.error?.toString()
+            WatchHistorySourceId.NUVIO, WatchHistorySourceId.TRAKT -> null
+        }
+        if (syncError != null) error("${id.name}: $syncError")
+        return items
     }
 }
 
@@ -132,7 +153,9 @@ internal class WatchHistoryController(
         scope.launch {
             profileIds.distinctUntilChanged().collect { profileId ->
                 failed.value = emptySet()
-                cache.value = Cache(profileId, decodeStoredWatchHistory(store.load(profileId)))
+                val loaded = decodeStoredWatchHistory(store.load(profileId))
+                // A refresh may have published fresher data for this profile while we were reading.
+                cache.update { current -> current?.takeIf { it.profileId == profileId } ?: Cache(profileId, loaded) }
             }
         }
         scope.launch {
@@ -173,12 +196,16 @@ internal class WatchHistoryController(
                     }
                 }.awaitAll()
             }
+            // Adapters read app-wide state for the active profile; results gathered across a
+            // profile switch may belong to the new profile, so never store them under the old one.
+            if (profileIds.first() != profileId) return
             val current = cache.value?.takeIf { it.profileId == profileId }?.stored
                 ?: decodeStoredWatchHistory(store.load(profileId))
             val now = nowEpochMs()
-            val connectedNames = connected.mapTo(mutableSetOf()) { it.name }
-            val sources = current.sources.filterKeys { it in connectedNames }.toMutableMap()
-            val updated = current.lastUpdatedEpochMs.filterKeys { it in connectedNames }.toMutableMap()
+            // Slices of sources not pulled now are kept: the connected set can be briefly
+            // incomplete while auth state loads, and the UI already hides disconnected sources.
+            val sources = current.sources.toMutableMap()
+            val updated = current.lastUpdatedEpochMs.toMutableMap()
             results.forEach { (id, result) ->
                 result.onSuccess { items ->
                     sources[id.name] = items
@@ -187,10 +214,8 @@ internal class WatchHistoryController(
             }
             val next = StoredWatchHistory(sources = sources, lastUpdatedEpochMs = updated)
             store.save(profileId, encodeStoredWatchHistory(next))
-            if (profileIds.first() == profileId) {
-                cache.value = Cache(profileId, next)
-                failed.value = results.filter { it.second.isFailure }.mapTo(mutableSetOf()) { it.first }
-            }
+            cache.value = Cache(profileId, next)
+            failed.value = results.filter { it.second.isFailure }.mapTo(mutableSetOf()) { it.first }
         } finally {
             refreshing.value = false
         }
