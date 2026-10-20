@@ -80,6 +80,11 @@ Everythings below are added on top of upstream Nuvio Mobile.
 | **Private viewing** — play without saving watch progress, Continue Watching or watched status, and without syncing playback to connected trackers. | Settings → Playback → **Private Viewing** | Off |
 | **Custom playback buffers** *(Android)* — set min, max, start, after-stall and back buffer, and the target buffer size. | Settings → Playback → **Custom Playback Buffers** | Upstream defaults |
 | **ExoPlayer native memory** *(Android, experimental)* — buffers in native memory instead of the Java heap, so you can set a larger buffer. The limit depends on how much memory the device has. | Settings → Playback → **ExoPlayer Native Memory (Experimental)** | Off |
+| **Sleep timer** — stop playback after 15, 30, 45, 60 or 90 min, or at the end of this episode. Audio fades out over 10 s, then playback pauses with a "Still watching?" prompt (+15 min / Resume). A countdown chip shows while it runs. | Player header → moon icon | Off |
+| **Audio delay** — shift audio up to ±60 s in 50 ms steps; hold to change faster. Works on libmpv, iOS and ExoPlayer. Kept for the current stream only. | Player → Audio panel → **Audio delay** | 0 s |
+| **Custom skip times** — set how far forward and back skip goes, from 5 to 90 s. Applies to double-tap, the on-screen buttons and keyboard arrows. Each extra double-tap adds another step. | Settings → Playback → **Skip forward** / **Skip back** | 10 s |
+| **Speed kept across episodes** — a playback speed you pick carries over to the next episode until you leave the player. | — | Always on |
+| **Per-gesture toggles and side swap** — separate switches for brightness swipe, volume swipe, hold to speed up and double-tap to seek, plus **Swap volume and brightness sides**. | Settings → Playback → Touch Gestures | All on, not swapped |
 
 ### Live TV
 
