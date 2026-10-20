@@ -413,6 +413,7 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
             playerController?.clearNowPlayingInfo()
             P2pStreamingEngine.shutdown()
             cancelNextEpisodePreload()
+            streamFailoverJob?.cancel()
             PlayerStreamsRepository.clearAll()
         }
     }
