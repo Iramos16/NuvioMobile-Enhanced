@@ -1,5 +1,6 @@
 package com.nuvio.app.features.library
 
+import com.nuvio.app.features.tracking.TrackingListStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -206,6 +207,8 @@ class LibraryDisplaySettingsTest {
         val state = LibraryDisplaySettingsUiState(
             layoutMode = LibraryLayoutMode.VERTICAL,
             sortOption = LibrarySortOption.TITLE_DESC,
+            category = LibraryCategory.ANIME,
+            statusFilter = setOf(TrackingListStatus.WATCHING, TrackingListStatus.DROPPED),
         )
 
         assertEquals(state, decodeLibraryDisplaySettings(encodeLibraryDisplaySettings(state)))
@@ -213,6 +216,28 @@ class LibraryDisplaySettingsTest {
             LibraryDisplaySettingsUiState(),
             decodeLibraryDisplaySettings("""{"layout_mode":"unknown","sort_option":"unknown"}"""),
         )
+    }
+
+    @Test
+    fun `old payloads keep layout and sort and default the filters`() {
+        assertEquals(
+            LibraryDisplaySettingsUiState(
+                layoutMode = LibraryLayoutMode.VERTICAL,
+                sortOption = LibrarySortOption.TITLE_ASC,
+                category = LibraryCategory.ALL,
+                statusFilter = emptySet(),
+            ),
+            decodeLibraryDisplaySettings("""{"layout_mode":"VERTICAL","sort_option":"TITLE_ASC"}"""),
+        )
+    }
+
+    @Test
+    fun `unknown filter names are dropped`() {
+        val decoded = decodeLibraryDisplaySettings(
+            """{"category":"cartoons","statuses":["watching","WATCHING","bogus"]}""",
+        )
+        assertEquals(LibraryCategory.ALL, decoded.category)
+        assertEquals(setOf(TrackingListStatus.WATCHING), decoded.statusFilter)
     }
 
     private fun item(
