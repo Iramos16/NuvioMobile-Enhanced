@@ -91,9 +91,87 @@ class DelayedAudioSinkTest {
         assertEquals(listOf(1_000_000L, 1_000_000L), fake.written)
     }
 
+    @Test
+    fun zeroDelayPassesBackwardDelegatePositionStraightThrough() {
+        val fake = FakeSink(positionUs = 5_000_000L)
+        val sink = DelayedAudioSink(fake.proxy, delayUsProvider = { 0L }, nowMs = { 10_000L })
+        sink.flush()
+        assertEquals(5_000_000L, sink.getCurrentPositionUs(false))
+        fake.positionUs = 2_000_000L
+        assertEquals(2_000_000L, sink.getCurrentPositionUs(false))
+    }
+
+    @Test
+    fun delegateSignalledDiscontinuityResetsTheClamp() {
+        var delayUs = 0L
+        var now = 10_000L
+        val fake = FakeSink(positionUs = 5_000_000L)
+        val sink = DelayedAudioSink(fake.proxy, delayUsProvider = { delayUs }, nowMs = { now })
+        var forwarded = 0
+        sink.setListener(listenerProxy { if (it == "onPositionDiscontinuity") forwarded++ })
+        sink.flush()
+        assertEquals(5_000_000L, sink.getCurrentPositionUs(false))
+        delayUs = -500_000L
+        now += 1_000L
+        sink.requestFlush()
+        fake.positionUs = 5_010_000L
+        assertEquals(5_000_000L, sink.getCurrentPositionUs(false))
+        fake.listener!!.onPositionDiscontinuity()
+        assertEquals(1, forwarded)
+        fake.positionUs = 3_000_000L
+        assertEquals(2_500_000L, sink.getCurrentPositionUs(false))
+    }
+
+    @Test
+    fun midRunChangeIsDebouncedThenAppliedOnALaterBuffer() {
+        var delayUs = 0L
+        var now = 10_000L
+        val fake = FakeSink(positionUs = 1_000_000L)
+        val sink = DelayedAudioSink(fake.proxy, delayUsProvider = { delayUs }, nowMs = { now })
+        sink.flush()
+        delayUs = 200_000L
+        sink.requestFlush()
+        sink.handleBuffer(ByteBuffer.allocate(4), 2_000_000L, 1)
+        assertEquals(1_200_000L, sink.getCurrentPositionUs(false))
+        delayUs = 300_000L
+        now += 50L
+        sink.requestFlush()
+        sink.handleBuffer(ByteBuffer.allocate(4), 2_010_000L, 1)
+        assertEquals(1_200_000L, sink.getCurrentPositionUs(false))
+        now += 150L
+        sink.handleBuffer(ByteBuffer.allocate(4), 2_020_000L, 1)
+        assertEquals(1_300_000L, sink.getCurrentPositionUs(false))
+    }
+
+    @Test
+    fun flushResetsTheBaseline() {
+        var delayUs = 0L
+        var now = 10_000L
+        val fake = FakeSink(positionUs = 5_000_000L)
+        val sink = DelayedAudioSink(fake.proxy, delayUsProvider = { delayUs }, nowMs = { now })
+        sink.flush()
+        assertEquals(5_000_000L, sink.getCurrentPositionUs(false))
+        delayUs = -500_000L
+        now += 1_000L
+        sink.requestFlush()
+        assertEquals(5_000_000L, sink.getCurrentPositionUs(false))
+        sink.flush()
+        fake.positionUs = 1_000_000L
+        assertEquals(500_000L, sink.getCurrentPositionUs(false))
+    }
+
+    private fun listenerProxy(onCall: (String) -> Unit): AudioSink.Listener = Proxy.newProxyInstance(
+        AudioSink.Listener::class.java.classLoader,
+        arrayOf(AudioSink.Listener::class.java),
+    ) { _, method, _ ->
+        onCall(method.name)
+        null
+    } as AudioSink.Listener
+
     private class FakeSink(var positionUs: Long, var accept: Boolean = true) {
         val written = mutableListOf<Long>()
         var discontinuities = 0
+        var listener: AudioSink.Listener? = null
         val proxy: AudioSink = Proxy.newProxyInstance(
             AudioSink::class.java.classLoader,
             arrayOf(AudioSink::class.java),
@@ -103,6 +181,10 @@ class DelayedAudioSinkTest {
                 "handleBuffer" -> {
                     written += args[1] as Long
                     accept
+                }
+                "setListener" -> {
+                    listener = args[0] as AudioSink.Listener
+                    null
                 }
                 "handleDiscontinuity" -> {
                     discontinuities++

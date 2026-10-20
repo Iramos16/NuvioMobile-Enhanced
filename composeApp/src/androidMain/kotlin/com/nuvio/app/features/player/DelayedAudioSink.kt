@@ -41,12 +41,19 @@ internal class DelayedAudioSink(
     private var dropAnchorUs = AudioSink.CURRENT_POSITION_NOT_SET
     private var droppedSinceLastWrite = false
     private var delegateHoldsBuffer = false
+    // Clock clamp is only active between a delay decrease and the resync after its drop, so Media3's
+    // own backward position discontinuities pass through untouched the rest of the time.
+    private var clampActive = false
+    private var ownResync = false
 
     init {
         startNewRun()
     }
 
-    /** Main thread: the provider's value changed; it is picked up on the playback thread. */
+    /**
+     * Main thread: the provider's value changed; it is picked up on the playback thread. Despite the
+     * name this never flushes the delegate; it only marks the delay as changed.
+     */
     fun requestFlush() {
         changeRequested = true
     }
@@ -56,7 +63,7 @@ internal class DelayedAudioSink(
         val reported = reportedPositionUs(
             super.getCurrentPositionUs(sourceEnded),
             appliedDelayUs,
-            lastReportedUs,
+            if (clampActive) lastReportedUs else AudioSink.CURRENT_POSITION_NOT_SET,
         )
         if (reported != AudioSink.CURRENT_POSITION_NOT_SET) lastReportedUs = reported
         return reported
@@ -82,6 +89,8 @@ internal class DelayedAudioSink(
             }
             if (droppedSinceLastWrite) {
                 droppedSinceLastWrite = false
+                clampActive = false
+                ownResync = true
                 super.handleDiscontinuity()
             }
         }
@@ -90,9 +99,43 @@ internal class DelayedAudioSink(
         } catch (error: Exception) {
             delegateHoldsBuffer = true
             throw error
+        } finally {
+            ownResync = false
         }
         delegateHoldsBuffer = !consumed
         return consumed
+    }
+
+    override fun setListener(listener: AudioSink.Listener) {
+        super.setListener(DiscontinuityAwareListener(listener))
+    }
+
+    /** The delegate moved its position on its own (e.g. a timestamp jump); drop our clamp baseline. */
+    private fun onDelegatePositionDiscontinuity() {
+        if (!ownResync) lastReportedUs = AudioSink.CURRENT_POSITION_NOT_SET
+    }
+
+    private inner class DiscontinuityAwareListener(private val base: AudioSink.Listener) : AudioSink.Listener {
+        override fun onPositionDiscontinuity() {
+            onDelegatePositionDiscontinuity()
+            base.onPositionDiscontinuity()
+        }
+        override fun onPositionAdvancing(playoutStartSystemTimeMs: Long) =
+            base.onPositionAdvancing(playoutStartSystemTimeMs)
+        override fun onUnderrun(bufferSize: Int, bufferSizeMs: Long, elapsedSinceLastFeedMs: Long) =
+            base.onUnderrun(bufferSize, bufferSizeMs, elapsedSinceLastFeedMs)
+        override fun onSkipSilenceEnabledChanged(skipSilenceEnabled: Boolean) =
+            base.onSkipSilenceEnabledChanged(skipSilenceEnabled)
+        override fun onOffloadBufferEmptying() = base.onOffloadBufferEmptying()
+        override fun onOffloadBufferFull() = base.onOffloadBufferFull()
+        override fun onAudioSinkError(audioSinkError: Exception) = base.onAudioSinkError(audioSinkError)
+        override fun onAudioCapabilitiesChanged() = base.onAudioCapabilitiesChanged()
+        override fun onAudioTrackInitialized(audioTrackConfig: AudioSink.AudioTrackConfig) =
+            base.onAudioTrackInitialized(audioTrackConfig)
+        override fun onAudioTrackReleased(audioTrackConfig: AudioSink.AudioTrackConfig) =
+            base.onAudioTrackReleased(audioTrackConfig)
+        override fun onSilenceSkipped() = base.onSilenceSkipped()
+        override fun onAudioSessionIdChanged(audioSessionId: Int) = base.onAudioSessionIdChanged(audioSessionId)
     }
 
     override fun configure(inputFormat: Format, specifiedBufferSize: Int, outputChannels: IntArray?) {
@@ -118,6 +161,8 @@ internal class DelayedAudioSink(
         lastReportedUs = AudioSink.CURRENT_POSITION_NOT_SET
         delegateHoldsBuffer = false
         droppedSinceLastWrite = false
+        clampActive = false
+        ownResync = false
         clearDrop()
         if (appliedDelayUs < 0L) dropShiftUs = appliedDelayUs
     }
@@ -144,6 +189,8 @@ internal class DelayedAudioSink(
             dropShiftUs = deltaUs
             dropAnchorUs = AudioSink.CURRENT_POSITION_NOT_SET
         }
+        // Hold the clock (instead of letting it step back) until the drop's resync lands.
+        clampActive = dropShiftUs < 0L
     }
 
     private fun requestedDelayUs(): Long =
@@ -156,6 +203,7 @@ internal class DelayedAudioSink(
 
     companion object {
         private const val NEVER = Long.MIN_VALUE
+        /** Minimum gap between applied delay changes; nothing here flushes the delegate. */
         const val FLUSH_DEBOUNCE_MS = 150L
 
         /**
@@ -180,7 +228,7 @@ internal class DelayedAudioSink(
         fun shouldDropBuffer(presentationTimeUs: Long, delayUs: Long, clockPositionUs: Long): Boolean =
             delayUs < 0L && presentationTimeUs + delayUs < clockPositionUs
 
-        /** A changed delay is applied at most once per [FLUSH_DEBOUNCE_MS]. */
+        /** A changed delay is applied at most once per [FLUSH_DEBOUNCE_MS]; "flush" never flushes the delegate. */
         fun shouldApplyFlush(lastAppliedDelayUs: Long, requestedDelayUs: Long, msSinceLastFlush: Long): Boolean =
             lastAppliedDelayUs != requestedDelayUs && msSinceLastFlush >= FLUSH_DEBOUNCE_MS
     }
