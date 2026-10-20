@@ -13,7 +13,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.nuvio.app.core.i18n.localizedMediaTypeLabel
 import com.nuvio.app.core.poster.withCustomPosterUrl
 import com.nuvio.app.core.ui.NuvioDropdownChip
 import com.nuvio.app.core.ui.NuvioDropdownOption
@@ -21,10 +20,8 @@ import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.components.PosterGridRow
 import com.nuvio.app.features.home.components.PosterGridSkeletonRow
 import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.library_filter_all_types
 import nuvio.composeapp.generated.resources.library_filter_list
 import nuvio.composeapp.generated.resources.library_filter_sort
-import nuvio.composeapp.generated.resources.library_filter_type
 import nuvio.composeapp.generated.resources.library_sort_added_asc
 import nuvio.composeapp.generated.resources.library_sort_added_desc
 import nuvio.composeapp.generated.resources.library_sort_title_asc
@@ -41,18 +38,16 @@ internal fun LibrarySavedControls(
     sortOption: LibrarySortOption,
     verticalProjection: LibraryVerticalProjection,
     onSectionSelected: (String) -> Unit,
-    onTypeSelected: (String?) -> Unit,
     onSortSelected: (LibrarySortOption) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val sortOptions = availableLibrarySortOptions(sourceMode)
-    val allTypesLabel = stringResource(Res.string.library_filter_all_types)
 
     Row(
         modifier = modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (layoutMode == LibraryLayoutMode.VERTICAL && sourceMode.isRemoteTrackingSource) {
+        if (layoutMode == LibraryLayoutMode.VERTICAL && sourceMode.isRemoteTrackingSource && !sourceMode.hasNativeWatchStatus) {
             val selectedSection = verticalProjection.availableSections
                 .firstOrNull { section -> section.type == verticalProjection.selectedSectionKey }
             NuvioDropdownChip(
@@ -64,27 +59,6 @@ internal fun LibrarySavedControls(
                 },
                 enabled = verticalProjection.availableSections.size > 1,
                 onSelected = { option -> onSectionSelected(option.key) },
-            )
-        }
-
-        if (layoutMode == LibraryLayoutMode.VERTICAL) {
-            val typeOptions = buildList {
-                add(NuvioDropdownOption(key = "", label = allTypesLabel))
-                addAll(
-                    verticalProjection.availableTypes.map { type ->
-                        NuvioDropdownOption(key = type, label = localizedMediaTypeLabel(type))
-                    },
-                )
-            }
-            NuvioDropdownChip(
-                title = stringResource(Res.string.library_filter_type),
-                label = verticalProjection.selectedType
-                    ?.let(::localizedMediaTypeLabel)
-                    ?: allTypesLabel,
-                selectedKey = verticalProjection.selectedType.orEmpty(),
-                options = typeOptions,
-                enabled = typeOptions.size > 1,
-                onSelected = { option -> onTypeSelected(option.key.ifBlank { null }) },
             )
         }
 

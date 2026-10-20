@@ -106,9 +106,9 @@ internal data class LibraryVerticalEntry(
 internal data class LibraryVerticalProjection(
     val availableSections: List<LibrarySection>,
     val selectedSectionKey: String?,
-    val availableTypes: List<String>,
-    val selectedType: String?,
     val entries: List<LibraryVerticalEntry>,
+    val hasActiveFilters: Boolean = false,
+    val totalBeforeFilters: Int = entries.size,
 )
 
 private val ReleaseSortOptions = setOf(LibrarySortOption.RELEASED_DESC, LibrarySortOption.RELEASED_ASC)
@@ -190,12 +190,14 @@ internal fun buildLibraryVerticalProjection(
     sections: List<LibrarySection>,
     sourceMode: LibrarySourceMode,
     selectedSectionKey: String?,
-    selectedType: String?,
+    filters: LibraryFilterSelection,
     sortOption: LibrarySortOption,
     providerOrders: Map<String, Map<String, Int>> = emptyMap(),
 ): LibraryVerticalProjection {
-    val availableSections = if (sourceMode.isRemoteTrackingSource) sections else emptyList()
-    val selectedSection = if (sourceMode.isRemoteTrackingSource) {
+    // Status-native providers expose their statuses as sections, so the status filter replaces the list picker.
+    val usesListPicker = sourceMode.isRemoteTrackingSource && !sourceMode.hasNativeWatchStatus
+    val availableSections = if (usesListPicker) sections else emptyList()
+    val selectedSection = if (usesListPicker) {
         sections.firstOrNull { it.type == selectedSectionKey } ?: sections.firstOrNull()
     } else {
         null
@@ -214,17 +216,7 @@ internal fun buildLibraryVerticalProjection(
             deduplicatedEntries[key] = entry
         }
     }
-    val availableTypes = deduplicatedEntries.values
-        .map { entry -> (entry.item.mediaCategory ?: entry.item.type).normalizedLibraryType() }
-        .filter { it.isNotBlank() }
-        .distinct()
-        .sorted()
-    val effectiveType = selectedType
-        ?.normalizedLibraryType()
-        ?.takeIf { it in availableTypes }
-    val filteredEntries = deduplicatedEntries.values.filter { entry ->
-        effectiveType == null || (entry.item.mediaCategory ?: entry.item.type).normalizedLibraryType() == effectiveType
-    }
+    val filteredEntries = deduplicatedEntries.values.filter { entry -> filters.matches(entry.item, entry.section) }
     val entryByKey = filteredEntries.associateBy { entry -> libraryDisplayItemKey(entry.item) }
     val sortedEntries = sortLibraryItems(
         items = filteredEntries.map { entry -> entry.item },
@@ -237,9 +229,9 @@ internal fun buildLibraryVerticalProjection(
     return LibraryVerticalProjection(
         availableSections = availableSections,
         selectedSectionKey = selectedSection?.type,
-        availableTypes = availableTypes,
-        selectedType = effectiveType,
         entries = sortedEntries,
+        hasActiveFilters = filters.isActive,
+        totalBeforeFilters = deduplicatedEntries.size,
     )
 }
 

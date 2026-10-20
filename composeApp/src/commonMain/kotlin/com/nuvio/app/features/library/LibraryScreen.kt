@@ -263,7 +263,6 @@ fun LibraryScreen(
     var showTorboxConnectDialog by rememberSaveable { mutableStateOf(false) }
     val torboxConnected = cloudSettings.apiKeyFor(DebridProviders.TORBOX_ID).isNotBlank()
     var selectedLibrarySectionKey by rememberSaveable { mutableStateOf<String?>(null) }
-    var selectedLibraryType by rememberSaveable { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     ScreenActivityEffect(listState) { screenActive ->
@@ -297,7 +296,6 @@ fun LibraryScreen(
         uiState.sections,
         uiState.sourceMode,
         selectedLibrarySectionKey,
-        selectedLibraryType,
         displaySettings,
         sourceMode,
         providerOrders,
@@ -307,7 +305,7 @@ fun LibraryScreen(
                 sections = uiState.sections,
                 sourceMode = uiState.sourceMode,
                 selectedSectionKey = selectedLibrarySectionKey,
-                selectedType = selectedLibraryType,
+                filters = LibraryFilterSelection(),
                 sortOption = visibleSortOption,
                 providerOrders = providerOrders.ranks,
             )
@@ -315,8 +313,6 @@ fun LibraryScreen(
             LibraryVerticalProjection(
                 availableSections = emptyList(),
                 selectedSectionKey = null,
-                availableTypes = emptyList(),
-                selectedType = null,
                 entries = emptyList(),
             )
         }
@@ -674,9 +670,7 @@ fun LibraryScreen(
                                     verticalProjection = verticalProjection,
                                     onSectionSelected = { sectionKey ->
                                         selectedLibrarySectionKey = sectionKey
-                                        selectedLibraryType = null
                                     },
-                                    onTypeSelected = { type -> selectedLibraryType = type },
                                     onSortSelected = LibraryDisplaySettingsRepository::setSortOption,
                                     modifier = libraryContentTransitionModifier()
                                         .padding(horizontal = 16.dp)
