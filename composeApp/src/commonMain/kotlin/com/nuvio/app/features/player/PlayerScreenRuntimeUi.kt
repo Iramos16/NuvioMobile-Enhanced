@@ -371,6 +371,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 .padding(top = 16.dp, start = horizontalSafePadding, end = horizontalSafePadding),
         )
         RenderPlayerModals()
+        RenderSleepTimer()
         RenderParty(runtime = runtime)
         }
     }
@@ -544,6 +545,11 @@ private fun PlayerScreenRuntime.RenderPlayerControls(isEpisode: Boolean) {
                 )
                 showStreamInfoModal = true
             },
+            onSleepTimerClick = {
+                showSleepTimerSheet = true
+                controlsVisible = false
+            },
+            sleepTimerLabel = sleepTimerChipLabel(),
             onRateClick = if (canRate) {
                 { showUserRatingSheet = true }
             } else null,

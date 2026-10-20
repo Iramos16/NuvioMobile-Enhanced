@@ -177,6 +177,17 @@ internal class PlayerScreenRuntime(
     /** Speed the user chose this session (null = never chosen). In-memory only. */
     var sessionPlaybackSpeed by mutableStateOf<Float?>(null)
     var sessionSpeedAppliedKey by mutableStateOf<PlaybackKey?>(null)
+    /** In-memory only: the sleep timer never outlives the player screen. */
+    var sleepTimerMode by mutableStateOf<SleepTimerMode>(SleepTimerMode.Off)
+    var sleepTimerPromptPending by mutableStateOf(false)
+    var showSleepTimerSheet by mutableStateOf(false)
+    /** Last tick time, so the header chip counts down without reading the clock in composition. */
+    var sleepTimerNowMs by mutableStateOf(0L)
+    /** Set once an end-of-episode timer fires so next-episode autoplay stays off for this episode. */
+    var sleepTimerSuppressAutoPlay by mutableStateOf(false)
+    var sleepTimerClock: () -> Long = { kotlin.time.Clock.System.now().toEpochMilliseconds() }
+    var sleepFadeStartedAtMs: Long? = null
+    var sleepFadeStartVolume: Float = 1f
     var initialSeekApplied by mutableStateOf(
         initialPositionMs <= 0L && ((initialProgressFraction ?: 0f) <= 0f),
     )

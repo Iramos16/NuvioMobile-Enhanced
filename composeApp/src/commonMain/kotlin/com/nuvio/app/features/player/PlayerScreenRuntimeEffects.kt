@@ -774,6 +774,13 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
         movieRecommendationStage = stage
         showMovieRecommendationCard = stage > movieRecommendationDismissedStage
     }
+
+    LaunchedEffect(sleepTimerMode) {
+        while (sleepTimerMode != SleepTimerMode.Off) {
+            onSleepTimerTick(sleepTimerClock())
+            delay(SleepTimerTickIntervalMs)
+        }
+    }
 }
 
 private fun PlayerScreenRuntime.buildNowPlayingInfo(): PlayerNowPlayingInfo {

@@ -586,6 +586,8 @@ internal fun PlayerScreenRuntime.switchToDownloadedEpisode(downloadItem: Downloa
 }
 
 internal fun PlayerScreenRuntime.playNextEpisode(automatic: Boolean = false) {
+    // A sleep timer that is about to end the episode (or just did) owns the ending.
+    if (automatic && (sleepTimerSuppressAutoPlay || sleepTimerMode == SleepTimerMode.EndOfEpisode)) return
     if (nextEpisodeAutoPlaySearching || nextEpisodeAutoPlayCountdown != null) return
     nextEpisodePreloadTriggered = false
     val playbackKey = activePlaybackKey
@@ -593,6 +595,7 @@ internal fun PlayerScreenRuntime.playNextEpisode(automatic: Boolean = false) {
     fun isCurrentRequest(): Boolean = playbackKey == activePlaybackKey &&
         nextEpisodeInfo?.videoId == nextVideoId &&
         (!automatic || (
+            !sleepTimerSuppressAutoPlay &&
             playerSettingsUiState.streamAutoPlayNextEpisodeEnabled &&
                 !nextEpisodeCardDismissed && isAtNextEpisodeThreshold()
             ))
@@ -682,6 +685,7 @@ internal fun PlayerScreenRuntime.openEpisodesPanel() {
 private data class EpisodeResume(val positionMs: Long, val fraction: Float?)
 
 private fun PlayerScreenRuntime.resetEpisodePanelAndNextEpisodeState() {
+    clearEndOfEpisodeSleepTimer()
     showNextEpisodeCard = false
     showSourcesPanel = false
     showEpisodesPanel = false

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.ListAlt
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Cast
 import androidx.compose.material.icons.rounded.CastConnected
@@ -171,6 +172,8 @@ internal fun PlayerControlActions(
     onQualityClick: (() -> Unit)? = null,
     onPictureInPictureClick: (() -> Unit)? = null,
     onInfoClick: (() -> Unit)? = null,
+    onSleepTimerClick: (() -> Unit)? = null,
+    sleepTimerLabel: String? = null,
     onRateClick: (() -> Unit)? = null,
     userRating: Int? = null,
     onInteraction: () -> Unit,
@@ -272,6 +275,12 @@ internal fun PlayerControlActions(
             PlayerControlAction(
                 stringResource(Res.string.compose_player_picture_in_picture), it,
                 icon = Icons.Rounded.PictureInPictureAlt,
+            )
+        },
+        onSleepTimerClick?.let {
+            PlayerControlAction(
+                sleepTimerLabel ?: stringResource(Res.string.sleep_timer_title), it,
+                icon = Icons.Rounded.Bedtime,
             )
         },
         onInfoClick?.let {

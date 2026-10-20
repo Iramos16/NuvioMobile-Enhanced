@@ -2831,6 +2831,14 @@
     <string name="stream_info_subtitle_source_embedded">Embedded</string>
     <string name="stream_info_player_engine">Player Engine</string>
     <string name="stream_info_server">Server</string>
+    <string name="sleep_timer_title">Sleep timer</string>
+    <string name="sleep_timer_minutes">%1$d min</string>
+    <string name="sleep_timer_end_of_episode">End of this episode</string>
+    <string name="sleep_timer_end_of_episode_short">End of ep.</string>
+    <string name="sleep_timer_off">Off</string>
+    <string name="sleep_timer_still_watching">Still watching?</string>
+    <string name="sleep_timer_extend">+15 min</string>
+    <string name="sleep_timer_resume">Resume</string>
     <string name="player_cast">Cast</string>
     <string name="player_cast_casting_to">Casting to %1$s</string>
     <string name="player_cast_stream_unsupported">This stream can't be cast, so it keeps playing on this device.</string>

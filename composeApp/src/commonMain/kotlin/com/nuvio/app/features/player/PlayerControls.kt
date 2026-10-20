@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ListAlt
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Groups
@@ -152,6 +153,8 @@ internal fun PlayerControlsShell(
     onOrientationToggleClick: (() -> Unit)? = null,
     isPortraitPlayback: Boolean = false,
     onInfoClick: (() -> Unit)? = null,
+    onSleepTimerClick: (() -> Unit)? = null,
+    sleepTimerLabel: String? = null,
     onRateClick: (() -> Unit)? = null,
     userRating: Int? = null,
     onSourcesClick: (() -> Unit)? = null,
@@ -248,6 +251,8 @@ internal fun PlayerControlsShell(
                     onOrientationToggleClick = onOrientationToggleClick,
                     isPortraitPlayback = isPortraitPlayback,
                     onInfoClick = onInfoClick,
+                    onSleepTimerClick = onSleepTimerClick,
+                    sleepTimerLabel = sleepTimerLabel,
                     onRateClick = onRateClick,
                     userRating = userRating,
                     onOpenInExternalPlayer = onOpenInExternalPlayer,
@@ -420,6 +425,8 @@ internal fun PlayerControlsShell(
                         onQualityClick = onQualityClick,
                         onPictureInPictureClick = onPictureInPictureClick,
                         onInfoClick = onInfoClick,
+                        onSleepTimerClick = onSleepTimerClick,
+                        sleepTimerLabel = sleepTimerLabel,
                         onRateClick = onRateClick,
                         userRating = userRating,
                         onInteraction = onInteraction,
@@ -453,6 +460,8 @@ private fun PlayerHeader(
     onOrientationToggleClick: (() -> Unit)? = null,
     isPortraitPlayback: Boolean = false,
     onInfoClick: (() -> Unit)?,
+    onSleepTimerClick: (() -> Unit)? = null,
+    sleepTimerLabel: String? = null,
     onRateClick: (() -> Unit)? = null,
     userRating: Int? = null,
     onOpenInExternalPlayer: (() -> Unit)?,
@@ -633,6 +642,24 @@ private fun PlayerHeader(
                             buttonSize = metrics.headerIconSize + 16.dp,
                             iconSize = metrics.headerIconSize,
                             onClick = onRateClick,
+                        )
+                    }
+                    if (onSleepTimerClick != null) {
+                        if (sleepTimerLabel != null) {
+                            Text(
+                                text = sleepTimerLabel,
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelLarge,
+                                modifier = Modifier.align(Alignment.CenterVertically),
+                            )
+                        }
+                        PlayerHeaderIconButton(
+                            icon = Icons.Rounded.Bedtime,
+                            contentDescription = stringResource(Res.string.sleep_timer_title),
+                            buttonSize = metrics.headerIconSize + 16.dp,
+                            iconSize = metrics.headerIconSize,
+                            onClick = onSleepTimerClick,
+                            tint = if (sleepTimerLabel != null) MaterialTheme.colorScheme.primary else Color.White,
                         )
                     }
                     if (onInfoClick != null) {
