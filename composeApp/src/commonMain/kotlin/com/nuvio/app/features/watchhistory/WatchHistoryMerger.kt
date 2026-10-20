@@ -2,6 +2,9 @@ package com.nuvio.app.features.watchhistory
 
 import com.nuvio.app.features.watched.WatchedItem
 import com.nuvio.app.features.watched.normalizeWatchedMarkedAtEpochMs
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Instant
 
 /** Groups ids across trackers: `movie:<id>` or `series:<id>`, case- and alias-insensitive. */
 internal fun watchHistoryTitleKey(item: WatchedItem): String {
@@ -83,4 +86,29 @@ internal fun mergeWatchHistory(
             )
         }
         .sortedWith(compareBy({ -it.watchedAtEpochMs }, { watchHistoryWatchKey(it.item) }))
+}
+
+/** Splits an already-sorted list into local-day sections, preserving order. */
+internal fun groupWatchHistoryByDay(
+    entries: List<WatchHistoryEntry>,
+    timeZone: TimeZone,
+): List<WatchHistoryDaySection> {
+    val sections = mutableListOf<WatchHistoryDaySection>()
+    var currentDay: Long? = null
+    var current = mutableListOf<WatchHistoryEntry>()
+    entries.forEach { entry ->
+        val day = Instant.fromEpochMilliseconds(entry.watchedAtEpochMs)
+            .toLocalDateTime(timeZone)
+            .date
+            .toEpochDays()
+            .toLong()
+        if (day != currentDay) {
+            currentDay?.let { sections += WatchHistoryDaySection(it, current) }
+            currentDay = day
+            current = mutableListOf()
+        }
+        current += entry
+    }
+    currentDay?.let { sections += WatchHistoryDaySection(it, current) }
+    return sections
 }
