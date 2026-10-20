@@ -51,6 +51,12 @@ class LibraryFiltersTest {
     }
 
     @Test
+    fun `series marked watched as a whole infers completed like the poster badge`() {
+        val watch = LibraryWatchSnapshot(watchedKeys = watchedItemKeys("series", "tt7"))
+        assertEquals(TrackingListStatus.COMPLETED, inferLibraryItemStatus(item("tt7", type = "show"), watch))
+    }
+
+    @Test
     fun `section status wins over inference`() {
         val watch = LibraryWatchSnapshot(fullyWatchedSeriesKeys = setOf(watchedItemKey("series", "tt1")))
         val entry = item("tt1", type = "series")
@@ -111,6 +117,14 @@ class LibraryFiltersTest {
             ),
         )
         assertEquals(setOf("tt5", "tt6"), snapshot.startedContentIds)
+    }
+
+    @Test
+    fun `saved controls header key ignores filters so the status sheet survives toggles`() {
+        assertEquals(
+            librarySavedControlsKey(LibrarySourceMode.LOCAL, LibraryLayoutMode.VERTICAL, LibrarySortOption.ADDED_DESC),
+            "library-saved-controls:LOCAL:VERTICAL:ADDED_DESC",
+        )
     }
 
     private fun item(

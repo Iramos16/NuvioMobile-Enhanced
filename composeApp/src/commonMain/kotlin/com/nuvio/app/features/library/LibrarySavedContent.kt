@@ -37,6 +37,13 @@ import nuvio.composeapp.generated.resources.library_sort_released_asc
 import nuvio.composeapp.generated.resources.library_sort_released_desc
 import org.jetbrains.compose.resources.stringResource
 
+// Filters stay out of the key: changing it recreates the item and would close the open status sheet.
+internal fun librarySavedControlsKey(
+    sourceMode: LibrarySourceMode,
+    layoutMode: LibraryLayoutMode,
+    sortOption: LibrarySortOption,
+): String = "library-saved-controls:$sourceMode:$layoutMode:$sortOption"
+
 @Composable
 internal fun LibrarySavedControls(
     layoutMode: LibraryLayoutMode,

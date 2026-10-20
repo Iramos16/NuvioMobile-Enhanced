@@ -677,9 +677,7 @@ fun LibraryScreen(
 
                     else -> {
                         stickyHeader(
-                            key = "library-saved-controls:${uiState.sourceMode}:" +
-                                "${displaySettings.layoutMode}:$effectiveSortOption:" +
-                                "${displaySettings.category}:${displaySettings.statusFilter.sortedBy { it.ordinal }}",
+                            key = librarySavedControlsKey(uiState.sourceMode, displaySettings.layoutMode, effectiveSortOption),
                         ) {
                             Box(modifier = Modifier.fillMaxWidth()) {
                                 Box(

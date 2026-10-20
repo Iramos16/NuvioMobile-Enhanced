@@ -75,9 +75,12 @@ internal fun libraryStatusForSectionKey(sectionKey: String): TrackingListStatus?
     LibrarySectionStatuses[sectionKey]
 
 internal fun inferLibraryItemStatus(item: LibraryItem, watch: LibraryWatchSnapshot): TrackingListStatus {
-    val completedKeys = if (item.isLibraryMovie()) watch.watchedKeys else watch.fullyWatchedSeriesKeys
+    // Mirrors WatchingState.isPosterWatched so the status agrees with the poster's watched badge.
+    val itemKeys = watchedItemKeys(item.type, item.id)
+    val isCompleted = itemKeys.any(watch.watchedKeys::contains) ||
+        (!item.isLibraryMovie() && itemKeys.any(watch.fullyWatchedSeriesKeys::contains))
     return when {
-        watchedItemKeys(item.type, item.id).any { it in completedKeys } -> TrackingListStatus.COMPLETED
+        isCompleted -> TrackingListStatus.COMPLETED
         item.id in watch.startedContentIds -> TrackingListStatus.WATCHING
         else -> TrackingListStatus.PLAN_TO_WATCH
     }
