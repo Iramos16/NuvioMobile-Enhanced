@@ -2310,6 +2310,16 @@ private class NuvioLibmpvView(
                     mpv.setPropertyDouble("sub-delay", targetMs / 1000.0)
                 }
             }
+
+            override val supportsAudioDelay: Boolean get() = true
+
+            override fun setAudioDelayMs(delayMs: Int) {
+                val targetMs = clampAudioDelayMs(delayMs)
+                InAppLogger.info("MPV/Android", "set audio delay ms=$targetMs")
+                executeMpv {
+                    mpv.setPropertyDouble("audio-delay", targetMs / 1000.0)
+                }
+            }
         }
 
     fun refreshTracks(context: Context) {

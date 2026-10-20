@@ -884,6 +884,9 @@ private fun PlayerScreenRuntime.RenderPlayerModals() {
             }
         },
         onAudioModalDismissed = { showAudioModal = false },
+        audioDelayMs = audioDelayState.delayMs,
+        supportsAudioDelay = playerController?.supportsAudioDelay == true,
+        onAudioDelayChanged = { delayMs -> setAudioDelay(delayMs) },
         showSubtitleModal = showSubtitleModal,
         subtitleTracks = serverSubtitleTracks.ifEmpty { subtitleTracks },
         selectedSubtitleIndex = if (serverSubtitleTracks.isEmpty()) {

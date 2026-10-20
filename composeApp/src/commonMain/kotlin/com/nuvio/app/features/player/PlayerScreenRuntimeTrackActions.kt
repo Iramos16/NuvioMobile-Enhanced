@@ -1,5 +1,7 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.logging.InAppLogger
+
 internal val PlayerScreenRuntime.subtitleStyle: SubtitleStyleState
     get() = playerSettingsUiState.subtitleStyle
 
@@ -366,4 +368,17 @@ private fun PlayerScreenRuntime.disableAutomaticSubtitleSelection() {
     selectedSubtitleIndex = -1
     selectedAddonSubtitleId = null
     useCustomSubtitles = false
+}
+
+internal fun PlayerScreenRuntime.setAudioDelay(delayMs: Int) {
+    val clamped = clampAudioDelayMs(delayMs)
+    audioDelayState = AudioDelayState(streamUrl = activeSourceUrl, delayMs = clamped)
+    applyAudioDelayToEngine(clamped)
+}
+
+internal fun PlayerScreenRuntime.applyAudioDelayToEngine(delayMs: Int) {
+    val controller = playerController ?: return
+    if (!controller.supportsAudioDelay) return
+    runCatching { controller.setAudioDelayMs(delayMs) }
+        .onFailure { InAppLogger.warn("Player/AudioDelay", "setAudioDelayMs failed: ${it.message}") }
 }

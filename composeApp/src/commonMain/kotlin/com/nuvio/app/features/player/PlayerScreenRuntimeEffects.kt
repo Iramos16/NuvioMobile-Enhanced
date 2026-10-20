@@ -202,6 +202,12 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         playerController?.setSubtitleDelayMs(subtitleDelayMs)
     }
 
+    // Audio delay lives per stream URL: a reload of the same stream keeps it, a new stream resets it.
+    LaunchedEffect(playerController, activeSourceUrl, audioDelayState) {
+        audioDelayState = audioDelayForStream(audioDelayState, activeSourceUrl)
+        applyAudioDelayToEngine(audioDelayState.delayMs)
+    }
+
     LaunchedEffect(selectedAddonSubtitleId, useCustomSubtitles, activeSourceUrl) {
         subtitleAutoSyncState = SubtitleAutoSyncUiState()
     }
