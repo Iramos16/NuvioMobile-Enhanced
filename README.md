@@ -134,6 +134,7 @@ Upstream Nuvio has no Live TV. This fork adds the whole feature.
 | **Library Calendar** — show release date of ongoing series in the library. | Library screen → **calendar icon toggle** | — |
 | **WeTrakr Library** — browse your WeTrakr lists as a Library source once WeTrakr is connected. | Library screen → source picker → **WeTrakr** | — |
 | **AniList Library** — browse your AniList anime lists as a Library source once AniList is connected. | Library screen → source picker → **AniList** | — |
+| **Watch History** — one list of everything you've watched, newest first and grouped by day, merged from Nuvio and every connected tracker (Trakt, Simkl, AniList, WeTrakr). Each row shows which trackers have it. **History merge** decides who wins when trackers disagree: *Most recent watch* takes the latest watch time per title or episode; *Most complete history* takes the tracker with the most history for each title and fills gaps from the others. AniList has no per-episode dates, so its times are marked approximate and only used when no other tracker has that episode. Opens from cache, refreshes in the background, and keeps the last copy when a tracker is offline. | Library screen → **history icon**; Settings → Tracking → Watch History → **History merge** | Most recent watch |
 
 ### Downloads
 

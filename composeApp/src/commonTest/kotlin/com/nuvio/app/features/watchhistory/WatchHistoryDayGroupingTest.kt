@@ -31,7 +31,7 @@ class WatchHistoryDayGroupingTest {
         )
         assertEquals(1, sections.size)
         assertEquals(2, sections.single().entries.size)
-        assertEquals(LocalDate(2023, 11, 14).toEpochDays().toLong(), sections.single().epochDay)
+        assertEquals(LocalDate(2023, 11, 14).toEpochDays(), sections.single().epochDay)
     }
 
     @Test
@@ -41,7 +41,7 @@ class WatchHistoryDayGroupingTest {
             saoPaulo,
         )
         assertEquals(
-            listOf(LocalDate(2023, 11, 15), LocalDate(2023, 11, 14)).map { it.toEpochDays().toLong() },
+            listOf(LocalDate(2023, 11, 15), LocalDate(2023, 11, 14)).map { it.toEpochDays() },
             sections.map { it.epochDay },
         )
     }

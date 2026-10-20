@@ -101,7 +101,6 @@ internal fun groupWatchHistoryByDay(
             .toLocalDateTime(timeZone)
             .date
             .toEpochDays()
-            .toLong()
         if (day != currentDay) {
             currentDay?.let { sections += WatchHistoryDaySection(it, current) }
             currentDay = day

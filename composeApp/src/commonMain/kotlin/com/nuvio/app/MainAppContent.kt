@@ -105,6 +105,7 @@ import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.downloads.DownloadItem
 import com.nuvio.app.features.downloads.DownloadSubtitles
 import com.nuvio.app.features.downloads.DownloadsRepository
+import com.nuvio.app.features.watchhistory.WatchHistoryScreen
 import com.nuvio.app.features.home.HomeCatalogSection
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.HomeRepository
@@ -385,6 +386,7 @@ internal fun MainAppContent(
     val continueWatchingSettingsTitle = stringResource(Res.string.compose_settings_page_continue_watching)
     val debridSettingsTitle = stringResource(Res.string.compose_settings_page_debrid)
     val downloadsTitle = stringResource(Res.string.compose_settings_root_downloads_title)
+    val watchHistoryTitle = stringResource(Res.string.watch_history_title)
     val addonsSettingsTitle = stringResource(Res.string.compose_settings_page_addons)
     val pluginsSettingsTitle = stringResource(Res.string.compose_settings_page_plugins)
     val accountSettingsTitle = stringResource(Res.string.compose_settings_page_account)
@@ -1681,6 +1683,7 @@ internal fun MainAppContent(
                                     }
                                 },
                                 onDownloadsClick = { navController.navigate(DownloadsRoute(downloadsTitle)) },
+                                onWatchHistoryClick = { navController.navigate(WatchHistoryRoute(watchHistoryTitle)) },
                                 onContinueWatchingClick = onContinueWatchingClick,
                                 onContinueWatchingLongPress = onContinueWatchingLongPress,
                                 onLiveTvChannelClick = onLiveTvChannelClick,
@@ -1896,6 +1899,15 @@ internal fun MainAppContent(
                         navController = navController,
                         useNativeNavigation = useNativeNavigation,
                         onOpenDownload = ::openDownloadedItem,
+                    )
+                }
+                entry<WatchHistoryRoute> { route ->
+                    val onBack = rememberGuardedPopBackStack(navController, route)
+                    WatchHistoryScreen(
+                        onBack = onBack,
+                        onOpenItem = { item ->
+                            navController.navigate(DetailRoute(type = item.type, id = item.id, title = item.name))
+                        },
                     )
                 }
                 entry<DownloadShowRoute> { route ->
