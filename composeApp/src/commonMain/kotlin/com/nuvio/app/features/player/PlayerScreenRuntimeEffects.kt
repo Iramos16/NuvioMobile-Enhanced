@@ -775,6 +775,10 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
         showMovieRecommendationCard = stage > movieRecommendationDismissedStage
     }
 
+    DisposableEffect(Unit) {
+        onDispose { restoreSleepFadeVolume() }
+    }
+
     LaunchedEffect(sleepTimerMode) {
         while (sleepTimerMode != SleepTimerMode.Off) {
             onSleepTimerTick(sleepTimerClock())

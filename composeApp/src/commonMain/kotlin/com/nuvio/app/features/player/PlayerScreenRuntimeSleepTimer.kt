@@ -35,7 +35,13 @@ internal fun PlayerScreenRuntime.clearEndOfEpisodeSleepTimer() {
     sleepTimerSuppressAutoPlay = false
 }
 
+/** Engine failures must never interrupt playback, so a bad tick is logged and skipped. */
 internal fun PlayerScreenRuntime.onSleepTimerTick(nowMs: Long) {
+    runCatching { runSleepTimerTick(nowMs) }
+        .onFailure { InAppLogger.warn("Player/SleepTimer", "tick failed: ${it.message}") }
+}
+
+private fun PlayerScreenRuntime.runSleepTimerTick(nowMs: Long) {
     sleepTimerNowMs = nowMs
     val mode = sleepTimerMode
     if (mode == SleepTimerMode.Off) return
@@ -47,7 +53,12 @@ internal fun PlayerScreenRuntime.onSleepTimerTick(nowMs: Long) {
         fireSleepTimer(mode)
         return
     }
-    if (mode.fadeStartReached(nowMs, positionMs, durationMs, thresholdMs)) {
+    if (!mode.fadeStartReached(nowMs, positionMs, durationMs, thresholdMs)) {
+        // e.g. the user seeked back before the end-of-episode point
+        restoreSleepFadeVolume()
+        return
+    }
+    if (!sleepTimerPartyLocked()) {
         val controller = playerController ?: return
         val startedAt = sleepFadeStartedAtMs ?: nowMs.also {
             sleepFadeStartedAtMs = it
@@ -70,21 +81,23 @@ private fun PlayerScreenRuntime.sleepTimerNextEpisodeThresholdMs(): Long? {
 
 private fun PlayerScreenRuntime.fireSleepTimer(mode: SleepTimerMode) {
     InAppLogger.info("Player/SleepTimer", "fired mode=$mode positionMs=${playbackSnapshot.positionMs}")
-    shouldPlay = false
-    playerController?.pause()
-    restoreSleepFadeVolume()
-    if (mode == SleepTimerMode.EndOfEpisode) {
-        cancelNextEpisodeAutoPlay()
-        sleepTimerSuppressAutoPlay = true
+    if (!sleepTimerPartyLocked()) {
+        runCatching { setPlaybackPlaying(false) }
+            .onFailure { InAppLogger.warn("Player/SleepTimer", "pause failed: ${it.message}") }
+        restoreSleepFadeVolume()
     }
+    sleepFadeStartedAtMs = null
+    cancelNextEpisodeAutoPlay()
+    sleepTimerSuppressAutoPlay = true
     sleepTimerMode = SleepTimerMode.Off
     sleepTimerPromptPending = true
 }
 
-private fun PlayerScreenRuntime.restoreSleepFadeVolume() {
+internal fun PlayerScreenRuntime.restoreSleepFadeVolume() {
     if (sleepFadeStartedAtMs == null) return
     sleepFadeStartedAtMs = null
-    playerController?.setPlayerVolume(sleepFadeStartVolume)
+    runCatching { playerController?.setPlayerVolume(sleepFadeStartVolume) }
+        .onFailure { InAppLogger.warn("Player/SleepTimer", "volume restore failed: ${it.message}") }
 }
 
 internal fun PlayerScreenRuntime.extendSleepTimer() {
@@ -97,13 +110,16 @@ internal fun PlayerScreenRuntime.dismissSleepPrompt(resume: Boolean) {
     sleepTimerPromptPending = false
     if (resume) {
         setSleepTimer(SleepTimerMode.Off)
+        sleepTimerSuppressAutoPlay = false
         resumePlaybackAfterSleepPrompt()
     }
 }
 
 private fun PlayerScreenRuntime.resumePlaybackAfterSleepPrompt() {
-    shouldPlay = true
-    playerController?.play()
+    // Same path as the play button, so party rules apply and playback is published.
+    if (sleepTimerPartyLocked()) return
+    runCatching { setPlaybackPlaying(true) }
+        .onFailure { InAppLogger.warn("Player/SleepTimer", "resume failed: ${it.message}") }
 }
 
 /** Header chip text: mm:ss for a duration timer, a short label for end of episode, null when off. */

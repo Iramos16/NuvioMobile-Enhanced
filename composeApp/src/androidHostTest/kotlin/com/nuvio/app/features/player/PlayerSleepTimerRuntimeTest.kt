@@ -109,6 +109,73 @@ class PlayerSleepTimerRuntimeTest {
     }
 
     @Test
+    fun partyLockedFireSkipsFadeAndPauseButStillPrompts() {
+        runtime.sleepTimerPartyLocked = { true }
+        controller.volume = 0.8f
+        runtime.nextEpisodeAutoPlayCountdown = 2
+        runtime.setSleepTimer(SleepTimerMode.Duration(endsAtMs = 100_000L))
+
+        runtime.onSleepTimerTick(nowMs = 95_000L)
+        runtime.onSleepTimerTick(nowMs = 97_000L)
+        runtime.onSleepTimerTick(nowMs = 100_000L)
+
+        assertEquals(0, controller.pauses)
+        assertEquals(emptyList(), controller.volumeSets)
+        assertEquals(SleepTimerMode.Off, runtime.sleepTimerMode)
+        assertTrue(runtime.sleepTimerPromptPending)
+        runtime.dismissSleepPrompt(resume = true)
+        assertEquals(0, controller.plays)
+    }
+
+    @Test
+    fun engineFailuresInATickAreSwallowed() {
+        controller.failVolume = true
+        runtime.setSleepTimer(SleepTimerMode.Duration(endsAtMs = 100_000L))
+        runtime.onSleepTimerTick(nowMs = 95_000L)
+        runtime.onSleepTimerTick(nowMs = 100_000L)
+        assertEquals(1, controller.pauses)
+        assertTrue(runtime.sleepTimerPromptPending)
+    }
+
+    @Test
+    fun leavingTheFadeWindowRestoresVolume() {
+        controller.volume = 0.7f
+        runtime.playbackSnapshot = runtime.playbackSnapshot.copy(positionMs = 599_000L - 5_000L)
+        runtime.setSleepTimer(SleepTimerMode.EndOfEpisode)
+        runtime.onSleepTimerTick(nowMs = 1_000L)
+        runtime.onSleepTimerTick(nowMs = 3_000L)
+        assertTrue(controller.volumeSets.last() < 0.7f)
+
+        runtime.playbackSnapshot = runtime.playbackSnapshot.copy(positionMs = 100_000L)
+        runtime.onSleepTimerTick(nowMs = 4_000L)
+        assertEquals(0.7f, controller.volumeSets.last())
+        assertNull(runtime.sleepFadeStartedAtMs)
+    }
+
+    @Test
+    fun releasingTheTimerOnExitRestoresVolume() {
+        controller.volume = 0.9f
+        runtime.setSleepTimer(SleepTimerMode.Duration(endsAtMs = 100_000L))
+        runtime.onSleepTimerTick(nowMs = 95_000L)
+        runtime.onSleepTimerTick(nowMs = 98_000L)
+        runtime.restoreSleepFadeVolume()
+        assertEquals(0.9f, controller.volumeSets.last())
+        assertNull(runtime.sleepFadeStartedAtMs)
+    }
+
+    @Test
+    fun durationFireCancelsAutoPlayAndResumeClearsSuppression() {
+        runtime.nextEpisodeAutoPlayCountdown = 3
+        runtime.setSleepTimer(SleepTimerMode.Duration(endsAtMs = 1_000L))
+        runtime.onSleepTimerTick(nowMs = 1_000L)
+        assertNull(runtime.nextEpisodeAutoPlayCountdown)
+        assertTrue(runtime.sleepTimerSuppressAutoPlay)
+
+        runtime.dismissSleepPrompt(resume = true)
+        assertFalse(runtime.sleepTimerSuppressAutoPlay)
+    }
+
+    @Test
     fun promptGateHidesWhileMiniPlayerIsActive() {
         assertFalse(shouldShowSleepPrompt(pending = true, inPip = false, miniPlayerActive = true))
         assertFalse(shouldShowSleepPrompt(pending = true, inPip = true, miniPlayerActive = false))
@@ -149,6 +216,7 @@ class PlayerSleepTimerRuntimeTest {
     @Test
     fun resumeTurnsTheTimerOffAndPlaysWhileDismissStaysPaused() {
         runtime.sleepTimerPromptPending = true
+        runtime.shouldPlay = false
         runtime.dismissSleepPrompt(resume = true)
         assertEquals(1, controller.plays)
         assertEquals(SleepTimerMode.Off, runtime.sleepTimerMode)
@@ -197,6 +265,7 @@ class PlayerSleepTimerRuntimeTest {
         var pauses = 0
         var plays = 0
         var volume = 1f
+        var failVolume = false
         val volumeSets = mutableListOf<Float>()
         override fun play() { plays++ }
         override fun pause() { pauses++ }
@@ -204,8 +273,9 @@ class PlayerSleepTimerRuntimeTest {
         override fun seekBy(offsetMs: Long) = Unit
         override fun retry() = Unit
         override fun setPlaybackSpeed(speed: Float) = Unit
-        override fun currentPlayerVolume() = PlayerAudioLevel(fraction = volume, isMuted = false)
+        override fun currentPlayerVolume() = if (failVolume) error("boom") else PlayerAudioLevel(fraction = volume, isMuted = false)
         override fun setPlayerVolume(level: Float): PlayerAudioLevel {
+            if (failVolume) error("boom")
             volumeSets += level
             return PlayerAudioLevel(fraction = level, isMuted = level <= 0.001f)
         }

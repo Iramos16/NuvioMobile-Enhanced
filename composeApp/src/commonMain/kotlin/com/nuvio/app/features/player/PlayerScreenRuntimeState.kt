@@ -186,6 +186,8 @@ internal class PlayerScreenRuntime(
     /** Set once an end-of-episode timer fires so next-episode autoplay stays off for this episode. */
     var sleepTimerSuppressAutoPlay by mutableStateOf(false)
     var sleepTimerClock: () -> Long = { kotlin.time.Clock.System.now().toEpochMilliseconds() }
+    /** Seam for tests: true when the party forbids this user from pausing or resuming. */
+    var sleepTimerPartyLocked: () -> Boolean = { isPartyControlLocked }
     var sleepFadeStartedAtMs: Long? = null
     var sleepFadeStartVolume: Float = 1f
     var initialSeekApplied by mutableStateOf(
