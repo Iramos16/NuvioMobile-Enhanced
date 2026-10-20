@@ -322,6 +322,7 @@ internal fun PlayerScreenRuntime.pinchVideoZoom(zoomFactor: Float) {
 internal fun PlayerScreenRuntime.setPlaybackSpeedFromPicker(speed: Float) {
     if (partyBlocksControl()) return
     partyRateNudge = null
+    sessionPlaybackSpeed = recordUserSpeed(sessionPlaybackSpeed, speed, isHoldToSpeedGestureActive)
     playerController?.setPlaybackSpeed(speed)
     publishPartyPlayback(rate = speed)
     showGestureMessage(formatPlaybackSpeedLabel(speed))
@@ -333,6 +334,7 @@ internal fun PlayerScreenRuntime.cyclePlaybackSpeed() {
     val current = playbackSnapshot.playbackSpeed
     val next = speeds.firstOrNull { it > current + 0.01f } ?: speeds.first()
     partyRateNudge = null
+    sessionPlaybackSpeed = recordUserSpeed(sessionPlaybackSpeed, next, isHoldToSpeedGestureActive)
     playerController?.setPlaybackSpeed(next)
     publishPartyPlayback(rate = next)
     showGestureMessage(formatPlaybackSpeedLabel(next))

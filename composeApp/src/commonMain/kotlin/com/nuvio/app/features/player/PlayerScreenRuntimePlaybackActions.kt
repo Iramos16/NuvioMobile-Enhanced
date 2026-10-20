@@ -39,6 +39,7 @@ internal fun PlayerScreenRuntime.updatePlaybackSnapshot(
         reported
     }
     playbackSnapshotKey = playbackKey
+    applyCarriedSpeedOnce(snapshot, playbackKey)
     playbackSnapshotMark = TimeSource.Monotonic.markNow()
     val targetPositionMs = scrubbingPositionMs ?: return true
     if (!isScrubbingTimeline && (
@@ -49,6 +50,18 @@ internal fun PlayerScreenRuntime.updatePlaybackSnapshot(
         scrubbingPositionMs = null
     }
     return true
+}
+
+/** Once per loaded stream, applies the carried session speed (or party rate) to the new engine. */
+private fun PlayerScreenRuntime.applyCarriedSpeedOnce(snapshot: PlayerPlaybackSnapshot, playbackKey: PlaybackKey) {
+    if (snapshot.isLoading || snapshot.durationMs <= 0L) return
+    if (sessionSpeedAppliedKey == playbackKey) return
+    sessionSpeedAppliedKey = playbackKey
+    val partyRate = partyRateOrNull()
+    if (sessionPlaybackSpeed == null && partyRate == null) return
+    val target = speedForNewEpisode(sessionPlaybackSpeed, partyRate)
+    if (abs(snapshot.playbackSpeed - target) < 0.01f) return
+    playerController?.setPlaybackSpeed(target)
 }
 
 internal val PlayerScreenRuntime.activePlaybackIdentity: String

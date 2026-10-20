@@ -174,6 +174,9 @@ internal class PlayerScreenRuntime(
     var isMiniPresentation by mutableStateOf(false)
     var speedBoostRestoreSpeed by mutableStateOf<Float?>(null)
     var isHoldToSpeedGestureActive by mutableStateOf(false)
+    /** Speed the user chose this session (null = never chosen). In-memory only. */
+    var sessionPlaybackSpeed by mutableStateOf<Float?>(null)
+    var sessionSpeedAppliedKey by mutableStateOf<PlaybackKey?>(null)
     var initialSeekApplied by mutableStateOf(
         initialPositionMs <= 0L && ((initialProgressFraction ?: 0f) <= 0f),
     )

@@ -190,6 +190,9 @@ internal fun PlayerScreenRuntime.currentPartyStream(): PartyStream? {
 internal fun PlayerScreenRuntime.partyBaseRate(): Float =
     PartyRepository.playback.value?.rate ?: playbackSnapshot.playbackSpeed
 
+internal fun PlayerScreenRuntime.partyRateOrNull(): Float? =
+    if (isPartySynced) PartyRepository.playback.value?.rate else null
+
 internal fun PlayerScreenRuntime.currentPlaybackPositionMs(): Long {
     val snapshot = playbackSnapshot
     if (!snapshot.isPlaying || snapshot.isLoading) return snapshot.positionMs
