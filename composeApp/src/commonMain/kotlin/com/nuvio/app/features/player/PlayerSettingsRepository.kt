@@ -43,6 +43,10 @@ data class PlayerSettingsUiState(
     val holdToSpeedValue: Float = 2f,
     val touchGesturesEnabled: Boolean = true,
     val swipeToSeekEnabled: Boolean = true,
+    val brightnessSwipeEnabled: Boolean = true,
+    val volumeSwipeEnabled: Boolean = true,
+    val doubleTapSeekEnabled: Boolean = true,
+    val swapGestureSides: Boolean = false,
     val seekForwardSeconds: Int = 10,
     val seekBackSeconds: Int = 10,
     val seekPreviewEnabled: Boolean = true,
@@ -136,6 +140,10 @@ object PlayerSettingsRepository {
     private var holdToSpeedValue = 2f
     private var touchGesturesEnabled = true
     private var swipeToSeekEnabled = true
+    private var brightnessSwipeEnabled = true
+    private var volumeSwipeEnabled = true
+    private var doubleTapSeekEnabled = true
+    private var swapGestureSides = false
     private var seekForwardSeconds = 10
     private var seekBackSeconds = 10
     private var seekPreviewEnabled = true
@@ -234,6 +242,10 @@ object PlayerSettingsRepository {
         holdToSpeedValue = 2f
         touchGesturesEnabled = true
         swipeToSeekEnabled = true
+        brightnessSwipeEnabled = true
+        volumeSwipeEnabled = true
+        doubleTapSeekEnabled = true
+        swapGestureSides = false
         seekForwardSeconds = 10
         seekBackSeconds = 10
         seekPreviewEnabled = true
@@ -327,6 +339,10 @@ object PlayerSettingsRepository {
         holdToSpeedValue = PlayerSettingsStorage.loadHoldToSpeedValue() ?: 2f
         touchGesturesEnabled = PlayerSettingsStorage.loadTouchGesturesEnabled() ?: true
         swipeToSeekEnabled = PlayerSettingsStorage.loadSwipeToSeekEnabled() ?: true
+        brightnessSwipeEnabled = PlayerSettingsStorage.loadBrightnessSwipeEnabled() ?: true
+        volumeSwipeEnabled = PlayerSettingsStorage.loadVolumeSwipeEnabled() ?: true
+        doubleTapSeekEnabled = PlayerSettingsStorage.loadDoubleTapSeekEnabled() ?: true
+        swapGestureSides = PlayerSettingsStorage.loadSwapGestureSides() ?: false
         seekForwardSeconds = normalizeSeekStepSeconds(PlayerSettingsStorage.loadSeekForwardSeconds())
         seekBackSeconds = normalizeSeekStepSeconds(PlayerSettingsStorage.loadSeekBackSeconds())
         seekPreviewEnabled = PlayerSettingsStorage.loadSeekPreviewEnabled() ?: true
@@ -557,6 +573,38 @@ object PlayerSettingsRepository {
         swipeToSeekEnabled = enabled
         publish()
         PlayerSettingsStorage.saveSwipeToSeekEnabled(enabled)
+    }
+
+    fun setBrightnessSwipeEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (brightnessSwipeEnabled == enabled) return
+        brightnessSwipeEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveBrightnessSwipeEnabled(enabled)
+    }
+
+    fun setVolumeSwipeEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (volumeSwipeEnabled == enabled) return
+        volumeSwipeEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveVolumeSwipeEnabled(enabled)
+    }
+
+    fun setDoubleTapSeekEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (doubleTapSeekEnabled == enabled) return
+        doubleTapSeekEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveDoubleTapSeekEnabled(enabled)
+    }
+
+    fun setSwapGestureSides(enabled: Boolean) {
+        ensureLoaded()
+        if (swapGestureSides == enabled) return
+        swapGestureSides = enabled
+        publish()
+        PlayerSettingsStorage.saveSwapGestureSides(enabled)
     }
 
     fun setSeekForwardSeconds(seconds: Int) {
@@ -1253,6 +1301,10 @@ object PlayerSettingsRepository {
             holdToSpeedValue = holdToSpeedValue,
             touchGesturesEnabled = touchGesturesEnabled,
             swipeToSeekEnabled = swipeToSeekEnabled,
+            brightnessSwipeEnabled = brightnessSwipeEnabled,
+            volumeSwipeEnabled = volumeSwipeEnabled,
+            doubleTapSeekEnabled = doubleTapSeekEnabled,
+            swapGestureSides = swapGestureSides,
             seekForwardSeconds = seekForwardSeconds,
             seekBackSeconds = seekBackSeconds,
             seekPreviewEnabled = seekPreviewEnabled,

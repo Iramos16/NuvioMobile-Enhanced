@@ -66,8 +66,7 @@ class PlayerGestureOverlayTest {
                             playbackGesturesEnabled = true,
                             sideGestureSystemEdgeExclusionPx = 0f,
                             playerControlsLockedState = callbacks.playerControlsLocked,
-                            touchGesturesEnabledState = callbacks.touchGesturesEnabled,
-                            swipeToSeekEnabledState = callbacks.swipeToSeekEnabled,
+                            gestureFlagsState = callbacks.gestureFlags,
                             isHoldToSpeedGestureActiveState = callbacks.isHoldToSpeedGestureActive,
                             currentPositionMsState = callbacks.currentPositionMs,
                             currentDurationMsState = callbacks.currentDurationMs,
@@ -98,7 +97,9 @@ class PlayerGestureOverlayTest {
         // A twelfth of the width is 5 s: swipes on titles under 30 minutes span 60 s.
         compose.onNodeWithTag("surface").performTouchInput {
             down(center)
-            moveBy(Offset(width / 12f, 0f))
+            // Overshoot the horizontal activation slop, then settle on the intended offset.
+            moveBy(Offset(width / 6f, 0f))
+            moveBy(Offset(-width / 12f, 0f))
         }
 
         val target = compose.onNodeWithText("01:05").assertIsDisplayed().getUnclippedBoundsInRoot()
@@ -131,7 +132,9 @@ class PlayerGestureOverlayTest {
         setPlayerContent()
         compose.onNodeWithTag("surface").performTouchInput {
             down(center)
-            moveBy(Offset(width / 12f, 0f))
+            // Overshoot the horizontal activation slop, then settle on the intended offset.
+            moveBy(Offset(width / 6f, 0f))
+            moveBy(Offset(-width / 12f, 0f))
         }
 
         compose.onNodeWithText("1:00:10").assertIsDisplayed()
@@ -188,7 +191,9 @@ class PlayerGestureOverlayTest {
         val surface = compose.onNodeWithTag("surface")
         surface.performTouchInput {
             down(center)
-            moveBy(Offset(width / 12f, 0f))
+            // Overshoot the horizontal activation slop, then settle on the intended offset.
+            moveBy(Offset(width / 6f, 0f))
+            moveBy(Offset(-width / 12f, 0f))
         }
         compose.onNodeWithText("+5s").assertIsDisplayed()
 
@@ -208,7 +213,9 @@ class PlayerGestureOverlayTest {
         setPlayerContent()
         compose.onNodeWithTag("surface").performTouchInput {
             down(center)
-            moveBy(Offset(width / 12f, 0f))
+            // Overshoot the horizontal activation slop, then settle on the intended offset.
+            moveBy(Offset(width / 6f, 0f))
+            moveBy(Offset(-width / 12f, 0f))
         }
 
         compose.onNodeWithText("01:05").assertIsDisplayed()
@@ -240,7 +247,7 @@ class PlayerGestureOverlayTest {
             runtime.liveGestureFeedback = null
             runtime.showBrightnessFeedback(0.4f)
         }
-        compose.onNodeWithText("40").assertIsDisplayed()
+        compose.onNodeWithText("40%").assertIsDisplayed()
         compose.onNodeWithText("2x").assertDoesNotExist()
     }
 

@@ -552,6 +552,42 @@ private fun PlaybackSettingsSection(
                 }
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_brightness_swipe),
+                    description = stringResource(Res.string.settings_playback_brightness_swipe_description),
+                    checked = autoPlayPlayerSettings.brightnessSwipeEnabled,
+                    enabled = touchGesturesEnabled && !autoPlayPlayerSettings.externalPlayerEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setBrightnessSwipeEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_volume_swipe),
+                    description = stringResource(Res.string.settings_playback_volume_swipe_description),
+                    checked = autoPlayPlayerSettings.volumeSwipeEnabled,
+                    enabled = touchGesturesEnabled && !autoPlayPlayerSettings.externalPlayerEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setVolumeSwipeEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_double_tap_seek),
+                    description = stringResource(Res.string.settings_playback_double_tap_seek_description),
+                    checked = autoPlayPlayerSettings.doubleTapSeekEnabled,
+                    enabled = touchGesturesEnabled && !autoPlayPlayerSettings.externalPlayerEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setDoubleTapSeekEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_swap_gesture_sides),
+                    description = stringResource(Res.string.settings_playback_swap_gesture_sides_description),
+                    checked = autoPlayPlayerSettings.swapGestureSides,
+                    enabled = touchGesturesEnabled && !autoPlayPlayerSettings.externalPlayerEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setSwapGestureSides,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
                     title = stringResource(Res.string.settings_playback_hold_to_speed),
                     description = stringResource(Res.string.settings_playback_hold_to_speed_description),
                     checked = holdToSpeedEnabled,

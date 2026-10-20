@@ -27,8 +27,7 @@ internal data class PlayerSurfaceGestureCallbacks(
     val clearLiveGestureFeedback: State<() -> Unit>,
     val revealLockedOverlay: State<() -> Unit>,
     val isHoldToSpeedGestureActive: State<Boolean>,
-    val touchGesturesEnabled: State<Boolean>,
-    val swipeToSeekEnabled: State<Boolean>,
+    val gestureFlags: State<PlayerGestureFlags>,
     val playerControlsLocked: State<Boolean>,
     val currentPositionMs: State<Long>,
     val currentDurationMs: State<Long>,
@@ -341,7 +340,7 @@ internal fun PlayerScreenRuntime.cyclePlaybackSpeed() {
 }
 
 internal fun PlayerScreenRuntime.activateHoldToSpeed() {
-    if (!playerSettingsUiState.holdToSpeedEnabled) return
+    if (!playerSettingsUiState.toGestureFlags().holdToSpeedEnabled) return
     if (isPartySynced) return
     val controller = playerController ?: return
     if (speedBoostRestoreSpeed != null) return
@@ -388,7 +387,7 @@ internal fun PlayerScreenRuntime.rememberSurfaceGestureCallbacks(): PlayerSurfac
             revealLockedOverlay()
             return@rememberUpdatedState
         }
-        if (!playerSettingsUiState.touchGesturesEnabled) {
+        if (!playerSettingsUiState.toGestureFlags().doubleTapEnabled) {
             controlsVisible = !controlsVisible
             return@rememberUpdatedState
         }
@@ -413,8 +412,7 @@ internal fun PlayerScreenRuntime.rememberSurfaceGestureCallbacks(): PlayerSurfac
         clearLiveGestureFeedback = rememberUpdatedState(::clearLiveGestureFeedback),
         revealLockedOverlay = rememberUpdatedState(::revealLockedOverlay),
         isHoldToSpeedGestureActive = rememberUpdatedState(isHoldToSpeedGestureActive),
-        touchGesturesEnabled = rememberUpdatedState(playerSettingsUiState.touchGesturesEnabled),
-        swipeToSeekEnabled = rememberUpdatedState(playerSettingsUiState.swipeToSeekEnabled),
+        gestureFlags = rememberUpdatedState(playerSettingsUiState.toGestureFlags()),
         playerControlsLocked = rememberUpdatedState(playerControlsLocked),
         currentPositionMs = remember(this) { derivedStateOf { playbackSnapshot.positionMs.coerceAtLeast(0L) } },
         currentDurationMs = remember(this) { derivedStateOf { playbackSnapshot.durationMs } },

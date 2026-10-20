@@ -234,7 +234,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             .playerSurfaceTapGestures(
                 layoutSize = layoutSize,
                 playbackGesturesEnabled = playbackGesturesEnabled,
-                playerControlsLockedState = gestureCallbacks.playerControlsLocked,
+                gestureFlags = gestureCallbacks.gestureFlags.value,
+                playerControlsLocked = gestureCallbacks.playerControlsLocked.value,
                 onSurfaceTap = gestureCallbacks.onSurfaceTap,
                 onSurfaceDoubleTap = gestureCallbacks.onSurfaceDoubleTap,
                 activateHoldToSpeedState = gestureCallbacks.activateHoldToSpeed,
@@ -248,8 +249,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 playbackGesturesEnabled = playbackGesturesEnabled,
                 sideGestureSystemEdgeExclusionPx = sideGestureSystemEdgeExclusionPx,
                 playerControlsLockedState = gestureCallbacks.playerControlsLocked,
-                touchGesturesEnabledState = gestureCallbacks.touchGesturesEnabled,
-                swipeToSeekEnabledState = gestureCallbacks.swipeToSeekEnabled,
+                gestureFlagsState = gestureCallbacks.gestureFlags,
                 isHoldToSpeedGestureActiveState = gestureCallbacks.isHoldToSpeedGestureActive,
                 currentPositionMsState = gestureCallbacks.currentPositionMs,
                 currentDurationMsState = gestureCallbacks.currentDurationMs,
@@ -264,7 +264,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             .playerSurfacePinchGestures(
                 playbackGesturesEnabled = playbackGesturesEnabled,
                 playerControlsLockedState = gestureCallbacks.playerControlsLocked,
-                touchGesturesEnabledState = gestureCallbacks.touchGesturesEnabled,
+                gestureFlagsState = gestureCallbacks.gestureFlags,
                 onPinchZoomState = onPinchZoom,
             ),
     ) {

@@ -16,26 +16,33 @@ import kotlin.math.roundToLong
 internal fun Modifier.playerSurfaceTapGestures(
     layoutSize: IntSize,
     playbackGesturesEnabled: Boolean,
-    playerControlsLockedState: State<Boolean>,
+    gestureFlags: PlayerGestureFlags,
+    playerControlsLocked: Boolean,
     onSurfaceTap: State<(Offset) -> Unit>,
     onSurfaceDoubleTap: State<(Offset) -> Unit>,
     activateHoldToSpeedState: State<() -> Unit>,
     deactivateHoldToSpeedState: State<() -> Unit>,
     revealLockedOverlayState: State<() -> Unit>,
 ): Modifier =
-    pointerInput(layoutSize, playbackGesturesEnabled) {
+    pointerInput(
+        layoutSize,
+        playbackGesturesEnabled,
+        gestureFlags.doubleTapEnabled,
+        gestureFlags.holdToSpeedEnabled,
+        playerControlsLocked,
+    ) {
         detectTapGestures(
             onPress = {
                 tryAwaitRelease()
                 deactivateHoldToSpeedState.value()
             },
             onTap = { offset -> onSurfaceTap.value(offset) },
-            onDoubleTap = if (playbackGesturesEnabled) {
+            onDoubleTap = if (playbackGesturesEnabled && gestureFlags.doubleTapEnabled) {
                 { offset -> onSurfaceDoubleTap.value(offset) }
             } else null,
-            onLongPress = if (playbackGesturesEnabled) {
+            onLongPress = if (playbackGesturesEnabled && (gestureFlags.holdToSpeedEnabled || playerControlsLocked)) {
                 {
-                    if (playerControlsLockedState.value) {
+                    if (playerControlsLocked) {
                         revealLockedOverlayState.value()
                     } else {
                         activateHoldToSpeedState.value()
@@ -52,8 +59,7 @@ internal fun Modifier.playerSurfaceDragGestures(
     playbackGesturesEnabled: Boolean,
     sideGestureSystemEdgeExclusionPx: Float,
     playerControlsLockedState: State<Boolean>,
-    touchGesturesEnabledState: State<Boolean>,
-    swipeToSeekEnabledState: State<Boolean>,
+    gestureFlagsState: State<PlayerGestureFlags>,
     isHoldToSpeedGestureActiveState: State<Boolean>,
     currentPositionMsState: State<Long>,
     currentDurationMsState: State<Long>,
@@ -84,7 +90,8 @@ internal fun Modifier.playerSurfaceDragGestures(
                 }
                 return@awaitEachGesture
             }
-            if (!touchGesturesEnabledState.value) {
+            val gestureFlags = gestureFlagsState.value
+            if (!gestureFlags.master) {
                 return@awaitEachGesture
             }
             val controller = gestureController
@@ -95,11 +102,10 @@ internal fun Modifier.playerSurfaceDragGestures(
             val isInSideGestureSystemEdge =
                 down.position.y <= sideGestureEdgeExclusionPx ||
                     down.position.y >= height - sideGestureEdgeExclusionPx
-            val region = when {
-                isInSideGestureSystemEdge -> null
-                down.position.x < width * PlayerLeftGestureBoundary -> PlayerSideGesture.Brightness
-                down.position.x > width * PlayerRightGestureBoundary -> PlayerSideGesture.Volume
-                else -> null
+            val region = if (isInSideGestureSystemEdge) {
+                null
+            } else {
+                gestureFlags.sideGestureFor(down.position.x / width)
             }
 
             val initialBrightness = if (region == PlayerSideGesture.Brightness) {
@@ -148,7 +154,7 @@ internal fun Modifier.playerSurfaceDragGestures(
                         viewConfiguration.touchSlop * PlayerHorizontalGestureTouchSlopMultiplier
                     val horizontalDominant =
                         !holdToSpeedActive &&
-                            swipeToSeekEnabledState.value &&
+                            gestureFlags.swipeToSeek &&
                             abs(totalDx) > horizontalGestureActivationSlop &&
                             abs(totalDx) > abs(totalDy) * PlayerHorizontalGestureDominanceRatio
                     val verticalDominant =
@@ -252,7 +258,7 @@ internal fun Modifier.playerSurfaceDragGestures(
 internal fun Modifier.playerSurfacePinchGestures(
     playbackGesturesEnabled: Boolean,
     playerControlsLockedState: State<Boolean>,
-    touchGesturesEnabledState: State<Boolean>,
+    gestureFlagsState: State<PlayerGestureFlags>,
     onPinchZoomState: State<(zoomFactor: Float) -> Unit>,
 ): Modifier =
     pointerInput(playbackGesturesEnabled) {
@@ -262,7 +268,7 @@ internal fun Modifier.playerSurfacePinchGestures(
             do {
                 val event = awaitPointerEvent()
                 val multiTouch = event.changes.count { it.pressed } > 1
-                if (multiTouch && !playerControlsLockedState.value && touchGesturesEnabledState.value) {
+                if (multiTouch && !playerControlsLockedState.value && gestureFlagsState.value.master) {
                     val zoom = event.calculateZoom()
                     if (zoom != 1f) onPinchZoomState.value(zoom)
                     event.changes.forEach { it.consume() }

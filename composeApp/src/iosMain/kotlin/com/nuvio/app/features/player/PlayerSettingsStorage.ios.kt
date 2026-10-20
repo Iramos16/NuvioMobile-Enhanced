@@ -29,6 +29,10 @@ actual object PlayerSettingsStorage {
     private const val holdToSpeedValueKey = "hold_to_speed_value"
     private const val touchGesturesEnabledKey = "touch_gestures_enabled"
     private const val swipeToSeekEnabledKey = "swipe_to_seek_enabled"
+    private const val brightnessSwipeEnabledKey = "brightness_swipe_enabled"
+    private const val volumeSwipeEnabledKey = "volume_swipe_enabled"
+    private const val doubleTapSeekEnabledKey = "double_tap_seek_enabled"
+    private const val swapGestureSidesKey = "swap_gesture_sides"
     private const val seekForwardSecondsKey = "seek_forward_seconds"
     private const val seekBackSecondsKey = "seek_back_seconds"
     private const val seekPreviewEnabledKey = "seek_preview_enabled"
@@ -346,6 +350,30 @@ actual object PlayerSettingsStorage {
 
     actual fun saveSwipeToSeekEnabled(enabled: Boolean) {
         saveBoolean(swipeToSeekEnabledKey, enabled)
+    }
+
+    actual fun loadBrightnessSwipeEnabled(): Boolean? = loadBoolean(brightnessSwipeEnabledKey)
+
+    actual fun saveBrightnessSwipeEnabled(enabled: Boolean) {
+        saveBoolean(brightnessSwipeEnabledKey, enabled)
+    }
+
+    actual fun loadVolumeSwipeEnabled(): Boolean? = loadBoolean(volumeSwipeEnabledKey)
+
+    actual fun saveVolumeSwipeEnabled(enabled: Boolean) {
+        saveBoolean(volumeSwipeEnabledKey, enabled)
+    }
+
+    actual fun loadDoubleTapSeekEnabled(): Boolean? = loadBoolean(doubleTapSeekEnabledKey)
+
+    actual fun saveDoubleTapSeekEnabled(enabled: Boolean) {
+        saveBoolean(doubleTapSeekEnabledKey, enabled)
+    }
+
+    actual fun loadSwapGestureSides(): Boolean? = loadBoolean(swapGestureSidesKey)
+
+    actual fun saveSwapGestureSides(enabled: Boolean) {
+        saveBoolean(swapGestureSidesKey, enabled)
     }
 
     actual fun loadSeekPreviewEnabled(): Boolean? = loadBoolean(seekPreviewEnabledKey)
@@ -1151,6 +1179,10 @@ actual object PlayerSettingsStorage {
         loadHoldToSpeedValue()?.let { put(holdToSpeedValueKey, encodeSyncFloat(it)) }
         loadTouchGesturesEnabled()?.let { put(touchGesturesEnabledKey, encodeSyncBoolean(it)) }
         loadSwipeToSeekEnabled()?.let { put(swipeToSeekEnabledKey, encodeSyncBoolean(it)) }
+        loadBrightnessSwipeEnabled()?.let { put(brightnessSwipeEnabledKey, encodeSyncBoolean(it)) }
+        loadVolumeSwipeEnabled()?.let { put(volumeSwipeEnabledKey, encodeSyncBoolean(it)) }
+        loadDoubleTapSeekEnabled()?.let { put(doubleTapSeekEnabledKey, encodeSyncBoolean(it)) }
+        loadSwapGestureSides()?.let { put(swapGestureSidesKey, encodeSyncBoolean(it)) }
         loadSeekForwardSeconds()?.let { put(seekForwardSecondsKey, encodeSyncInt(it)) }
         loadSeekBackSeconds()?.let { put(seekBackSecondsKey, encodeSyncInt(it)) }
         loadMovieRecommendationsEnabled()?.let { put(movieRecommendationsEnabledKey, encodeSyncBoolean(it)) }
@@ -1240,6 +1272,10 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncFloat(holdToSpeedValueKey)?.let(::saveHoldToSpeedValue)
         payload.decodeSyncBoolean(touchGesturesEnabledKey)?.let(::saveTouchGesturesEnabled)
         payload.decodeSyncBoolean(swipeToSeekEnabledKey)?.let(::saveSwipeToSeekEnabled)
+        payload.decodeSyncBoolean(brightnessSwipeEnabledKey)?.let(::saveBrightnessSwipeEnabled)
+        payload.decodeSyncBoolean(volumeSwipeEnabledKey)?.let(::saveVolumeSwipeEnabled)
+        payload.decodeSyncBoolean(doubleTapSeekEnabledKey)?.let(::saveDoubleTapSeekEnabled)
+        payload.decodeSyncBoolean(swapGestureSidesKey)?.let(::saveSwapGestureSides)
         payload.decodeSyncInt(seekForwardSecondsKey)?.let(::saveSeekForwardSeconds)
         payload.decodeSyncInt(seekBackSecondsKey)?.let(::saveSeekBackSeconds)
         payload.decodeSyncBoolean(movieRecommendationsEnabledKey)?.let(::saveMovieRecommendationsEnabled)
