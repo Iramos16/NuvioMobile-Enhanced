@@ -69,7 +69,7 @@ Everythings below are added on top of upstream Nuvio Mobile.
 | **Picture in Picture button** — enter PiP straight from the player overlay, in both the legacy and the new control layout. | Player screen overlay | — |
 | **Gesture readouts** — swiping shows the seek target and delta, and the volume/brightness percentage, in the new control layout as well. | — | Always on |
 | **Swipe to Seek toggle** — an option to turn it off to prevent accidental seeking while keeping the up/down brightness and volume swipes. | Settings → Playback → **Swipe to Seek** (under Touch Gestures) | On |
-| **Hardware keyboard shortcuts** — <kbd>Space</kbd> play/pause, <kbd>←</kbd> / <kbd>→</kbd> seek 10 s, <kbd>Esc</kbd> leave the player. Inert while a panel is open or the controls are locked. | — | Always on |
+| **Hardware keyboard shortcuts** — <kbd>Space</kbd> play/pause, <kbd>←</kbd> / <kbd>→</kbd> skip back / forward by your skip times, <kbd>Esc</kbd> leave the player. Inert while a panel is open or the controls are locked. | — | Always on |
 | **Adjustable subtitle transparency** | Settings → Playback → Subtitle Rendering → **Background Color** | — |
 | **Sync subtitles by ear** — tap **Heard** when you hear a line and **Saw** when its subtitle appears, in either order, and the offset is set for you. | Player → Subtitles panel → **Sync by ear** | — |
 | **Buffered range on the seek bar** — the timeline shows how far ahead the stream is buffered, in both the legacy and the new control layout. | — | Always on |
@@ -81,10 +81,10 @@ Everythings below are added on top of upstream Nuvio Mobile.
 | **Custom playback buffers** *(Android)* — set min, max, start, after-stall and back buffer, and the target buffer size. | Settings → Playback → **Custom Playback Buffers** | Upstream defaults |
 | **ExoPlayer native memory** *(Android, experimental)* — buffers in native memory instead of the Java heap, so you can set a larger buffer. The limit depends on how much memory the device has. | Settings → Playback → **ExoPlayer Native Memory (Experimental)** | Off |
 | **Sleep timer** — stop playback after 15, 30, 45, 60 or 90 min, or at the end of this episode. Audio fades out over 10 s, then playback pauses with a "Still watching?" prompt (+15 min / Resume). A countdown chip shows while it runs. | Player header → moon icon | Off |
-| **Audio delay** — shift audio up to ±60 s in 50 ms steps; hold to change faster. Works on libmpv, iOS and ExoPlayer. Kept for the current stream only. | Player → Audio panel → **Audio delay** | 0 s |
-| **Custom skip times** — set how far forward and back skip goes, from 5 to 90 s. Applies to double-tap, the on-screen buttons and keyboard arrows. Each extra double-tap adds another step. | Settings → Playback → **Skip forward** / **Skip back** | 10 s |
+| **Audio delay** — shift audio up to ±60 s in 50 ms steps; hold to change faster. Works on libmpv, iOS and ExoPlayer. Kept for the current stream only. On ExoPlayer, large negative delays can stall buffering, a positive delay makes seeks land that much later, and it is unavailable with tunneling on. | Player → Audio panel → **Audio delay** | 0 s |
+| **Custom skip times** — set how far forward and back skip goes, from 5 to 90 s. Applies to double-tap, the on-screen buttons and keyboard arrows. After a double-tap, each extra tap on the same side within the double-tap window adds another step right away. | Settings → Playback → **Skip forward** / **Skip back** | 10 s |
 | **Speed kept across episodes** — a playback speed you pick carries over to the next episode until you leave the player. | — | Always on |
-| **Per-gesture toggles and side swap** — separate switches for brightness swipe, volume swipe, hold to speed up and double-tap to seek, plus **Swap volume and brightness sides**. | Settings → Playback → Touch Gestures | All on, not swapped |
+| **Per-gesture toggles and side swap** — separate switches for **Brightness swipe**, **Volume swipe**, **Hold To Speed** and **Double-tap to skip**, plus **Swap brightness and volume sides**. | Settings → Playback → Touch Gestures | All on, not swapped |
 
 ### Live TV
 
