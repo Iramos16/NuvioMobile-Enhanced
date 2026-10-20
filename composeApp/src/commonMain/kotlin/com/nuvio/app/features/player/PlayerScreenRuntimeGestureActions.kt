@@ -210,11 +210,7 @@ internal fun PlayerScreenRuntime.seekStepMs(direction: PlayerSeekDirection): Lon
     return normalizeSeekStepSeconds(seconds) * 1_000L
 }
 
-/**
- * [quiet] is for callers that drive their own on-screen feedback (double-tap stacking): it skips
- * the control reveal and the per-step seek readout.
- */
-internal fun PlayerScreenRuntime.seekBy(offsetMs: Long, quiet: Boolean = false) {
+internal fun PlayerScreenRuntime.seekBy(offsetMs: Long) {
     val fromMs = pendingSeekTarget
         ?.takeIf { (_, mark) -> mark.elapsedNow() < PendingSeekWindow }
         ?.first
@@ -228,7 +224,6 @@ internal fun PlayerScreenRuntime.seekBy(offsetMs: Long, quiet: Boolean = false) 
     if (isPartySynced) playerController?.seekTo(targetMs) else playerController?.seekBy(offsetMs)
     scheduleProgressSyncAfterSeek()
     publishPartyPlayback(positionMs = targetMs)
-    if (quiet) return
     controlsVisible = true
     when {
         offsetMs > 0L -> showSeekFeedback(PlayerSeekDirection.Forward, offsetMs)
@@ -258,22 +253,30 @@ internal fun PlayerScreenRuntime.handleKeyboardShortcut(shortcut: PlayerKeyboard
 }
 
 internal fun PlayerScreenRuntime.handleDoubleTapSeek(direction: PlayerSeekDirection) {
+    val currentPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
     val stepMs = seekStepMs(direction)
     val currentSeekState = accumulatedSeekState?.takeIf { it.direction == direction }
-    val stackedAmountMs = stackDoubleTapSeek(currentSeekState?.amountMs, stepMs)
-    val baselinePositionMs = currentSeekState?.baselinePositionMs
-        ?: playbackSnapshot.positionMs.coerceAtLeast(0L)
-    accumulatedSeekState = PlayerAccumulatedSeekState(
+    val nextState = PlayerAccumulatedSeekState(
         direction = direction,
-        baselinePositionMs = baselinePositionMs,
-        amountMs = stackedAmountMs,
+        baselinePositionMs = currentSeekState?.baselinePositionMs ?: currentPositionMs,
+        amountMs = stackDoubleTapSeek(currentSeekState?.amountMs, stepMs),
     )
-    // One step per tap, applied immediately on top of the pending target so rapid taps never
-    // wait for the player to report a position.
-    seekBy(if (direction == PlayerSeekDirection.Forward) stepMs else -stepMs, quiet = true)
-    showSeekFeedback(direction, stackedAmountMs)
+    // Always absolute from the first tap's baseline: a stale reported position can't swallow taps.
+    val requestedPositionMs = doubleTapSeekTarget(
+        direction = direction,
+        baselinePositionMs = nextState.baselinePositionMs,
+        amountMs = nextState.amountMs,
+        durationMs = playbackSnapshot.durationMs,
+    )
+    val targetPositionMs = if (isPartyControlLocked) ownSeekTarget(requestedPositionMs) ?: return else requestedPositionMs
+    accumulatedSeekState = nextState
+    lastManualSkipSeekPositions = currentPositionMs to targetPositionMs
+    playerController?.seekTo(targetPositionMs)
+    scheduleProgressSyncAfterSeek()
+    publishPartyPlayback(positionMs = targetPositionMs)
+    showSeekFeedback(direction, nextState.amountMs)
     if (direction == PlayerSeekDirection.Backward) {
-        notifyRewindOccurred(baselinePositionMs)
+        notifyRewindOccurred(nextState.baselinePositionMs)
     }
 
     accumulatedSeekResetJob?.cancel()
