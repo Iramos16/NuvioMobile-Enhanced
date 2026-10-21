@@ -146,12 +146,16 @@ internal class WatchHistoryController(
     private val scope: CoroutineScope,
     private val nowEpochMs: () -> Long,
 ) {
-    private class Cache(val profileId: Int, val stored: StoredWatchHistory)
+    /** Failures travel with the data they describe, so both are replaced together. */
+    private class Cache(
+        val profileId: Int,
+        val stored: StoredWatchHistory,
+        val failed: Set<WatchHistorySourceId> = emptySet(),
+    )
 
     private val cache = MutableStateFlow<Cache?>(null)
     private val refreshing = MutableStateFlow(false)
     private val refreshQueued = MutableStateFlow(false)
-    private val failed = MutableStateFlow<Set<WatchHistorySourceId>>(emptySet())
 
     private val _uiState = MutableStateFlow(WatchHistoryUiState())
     val uiState: StateFlow<WatchHistoryUiState> = _uiState.asStateFlow()
@@ -164,14 +168,13 @@ internal class WatchHistoryController(
         started = true
         scope.launch {
             profileIds.distinctUntilChanged().collect { profileId ->
-                failed.value = emptySet()
                 val loaded = decodeStoredWatchHistory(store.load(profileId))
                 // A refresh may have published fresher data for this profile while we were reading.
                 cache.update { current -> current?.takeIf { it.profileId == profileId } ?: Cache(profileId, loaded) }
             }
         }
         scope.launch {
-            combine(cache, gateway.connectedSources(), policy, refreshing, failed) { cache, connected, policy, refreshing, failed ->
+            combine(cache, gateway.connectedSources(), policy, refreshing) { cache, connected, policy, refreshing ->
                 if (cache == null) return@combine WatchHistoryUiState(isRefreshing = refreshing)
                 val sources = connected.map { id ->
                     WatchHistorySource(id, cache.stored.sources[id.name].orEmpty())
@@ -182,7 +185,7 @@ internal class WatchHistoryController(
                     isRefreshing = refreshing,
                     // The oldest source decides, so one failing tracker cannot make the list look fresh.
                     lastUpdatedEpochMs = connected.mapNotNull { cache.stored.lastUpdatedEpochMs[it.name] }.minOrNull(),
-                    failedSources = failed intersect connected,
+                    failedSources = cache.failed intersect connected,
                     connectedSources = connected,
                     policy = policy,
                 )
@@ -193,7 +196,6 @@ internal class WatchHistoryController(
     /** Forgets every listed profile's history, on disk and in memory (account sign-out). */
     fun clear(profileIds: IntRange) {
         profileIds.forEach(store::delete)
-        failed.value = emptySet()
         cache.update { current -> current?.let { Cache(it.profileId, StoredWatchHistory()) } }
     }
 
@@ -271,8 +273,11 @@ internal class WatchHistoryController(
         }
         val next = StoredWatchHistory(sources = sources, lastUpdatedEpochMs = updated)
         store.save(profileId, encodeStoredWatchHistory(next))
-        cache.value = Cache(profileId, next)
-        failed.value = results.filter { it.second.isFailure }.mapTo(mutableSetOf()) { it.first }
+        cache.value = Cache(
+            profileId = profileId,
+            stored = next,
+            failed = results.filter { it.second.isFailure }.mapTo(mutableSetOf()) { it.first },
+        )
     }
 }
 

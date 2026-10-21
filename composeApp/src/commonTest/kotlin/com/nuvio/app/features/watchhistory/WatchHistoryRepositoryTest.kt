@@ -377,4 +377,38 @@ class WatchHistoryRepositoryTest {
         assertTrue(store.payloads.isEmpty())
         assertTrue(controller.awaitState { it.sections.isEmpty() }.sections.isEmpty())
     }
+
+    @Test
+    fun lateStartupProfileLoad_keepsFailuresFromEarlierRefresh() {
+        val gateway = FakeGateway(setOf(NUVIO, SIMKL)).apply {
+            results[NUVIO] = { listOf(item("fresh", 100)) }
+            results[SIMKL] = { error("offline") }
+        }
+        val store = FakeStore()
+        var collections = 0
+        val startupGate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        // The first collector (start()'s profile observer) only sees the profile after refresh ran.
+        val profileIds = kotlinx.coroutines.flow.flow {
+            collections += 1
+            if (collections == 1) startupGate.await()
+            emit(1)
+        }
+        val controller = WatchHistoryController(
+            gateway = gateway,
+            store = store,
+            policy = MutableStateFlow(WatchHistoryMergePolicy.MOST_RECENT),
+            profileIds = profileIds,
+            timeZone = { TimeZone.UTC },
+            scope = scope,
+            nowEpochMs = { 5_000L },
+        )
+        controller.start()
+        runBlocking {
+            withTimeout(5_000) { while (collections < 1) kotlinx.coroutines.yield() }
+            controller.refresh()
+            startupGate.complete(Unit)
+            kotlinx.coroutines.delay(200)
+        }
+        assertEquals(setOf(SIMKL), controller.awaitState { it.isLoaded }.failedSources)
+    }
 }
