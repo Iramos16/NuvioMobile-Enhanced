@@ -66,7 +66,6 @@ import com.nuvio.app.features.cloud.cloudLibraryDisplayArtworkUrl
 import com.nuvio.app.features.tracking.WatchProgressSource
 import com.nuvio.app.features.watchprogress.ContinueWatchingItem
 import com.nuvio.app.features.watchprogress.ContinueWatchingSectionStyle
-import com.nuvio.app.features.watchprogress.WatchProgressCompletionPercentThreshold
 import com.nuvio.app.features.watchprogress.continueWatchingItemKey
 import com.nuvio.app.features.watchprogress.CurrentDateProvider
 import com.nuvio.app.features.watchprogress.computeAirDateBadgeText
@@ -74,6 +73,7 @@ import kotlin.math.roundToInt
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import com.nuvio.app.core.i18n.localizedEpisodeTitle
+import com.nuvio.app.features.watching.domain.WatchedThreshold
 
 private val ContinueWatchingStatusBadgeShape = RoundedCornerShape(4.dp)
 private val ContinueWatchingNewEpisodeBadgeColor = Color(0xFF1D4ED8)
@@ -262,7 +262,7 @@ internal fun ContinueWatchingItem.shouldBlurContinueWatchingArtwork(
     if (!blurUnwatchedEpisodes || !useEpisodeThumbnails || isWatched) return false
     val thumbnail = episodeThumbnail?.trim()?.takeIf { it.isNotBlank() } ?: return false
     val artwork = artworkUrl?.trim()?.takeIf { it.isNotBlank() } ?: return false
-    val isUnwatched = isNextUp || progressFraction < WatchProgressCompletionPercentThreshold / 100f
+    val isUnwatched = isNextUp || !WatchedThreshold.isReached(progressFraction * 100f)
     return isUnwatched && artwork == thumbnail
 }
 

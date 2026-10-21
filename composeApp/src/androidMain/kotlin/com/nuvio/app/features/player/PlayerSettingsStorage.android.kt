@@ -13,6 +13,7 @@ import com.nuvio.app.core.sync.encodeSyncInt
 import com.nuvio.app.core.sync.encodeSyncString
 import com.nuvio.app.core.sync.encodeSyncStringSet
 import com.nuvio.app.core.storage.ProfileScopedKey
+import com.nuvio.app.features.watching.domain.WatchedThreshold
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -97,6 +98,7 @@ actual object PlayerSettingsStorage {
     private const val nextEpisodeThresholdModeKey = "next_episode_threshold_mode"
     private const val nextEpisodeThresholdPercentKey = "next_episode_threshold_percent_v2"
     private const val nextEpisodeThresholdMinutesBeforeEndKey = "next_episode_threshold_minutes_before_end_v2"
+    private const val watchedThresholdPercentKey = "watched_threshold_percent"
     private const val preloadNextEpisodeSourcesKey = "preload_next_episode_sources"
     private const val miniPlayerEnabledKey = "mini_player_enabled"
     private const val privateViewingEnabledKey = "private_viewing_enabled"
@@ -175,6 +177,7 @@ actual object PlayerSettingsStorage {
         nextEpisodeThresholdModeKey,
         nextEpisodeThresholdPercentKey,
         nextEpisodeThresholdMinutesBeforeEndKey,
+        watchedThresholdPercentKey,
         preloadNextEpisodeSourcesKey,
         miniPlayerEnabledKey,
         useLibassKey,
@@ -1369,6 +1372,23 @@ actual object PlayerSettingsStorage {
             ?.apply()
     }
 
+    actual fun loadWatchedThresholdPercent(): Int? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(watchedThresholdPercentKey)
+            if (sharedPreferences.contains(key)) {
+                sharedPreferences.getInt(key, WatchedThreshold.DEFAULT_PERCENT)
+            } else {
+                null
+            }
+        }
+
+    actual fun saveWatchedThresholdPercent(percent: Int) {
+        preferences
+            ?.edit()
+            ?.putInt(ProfileScopedKey.of(watchedThresholdPercentKey), percent)
+            ?.apply()
+    }
+
     actual fun loadNextEpisodeThresholdMinutesBeforeEnd(): Float? =
         preferences?.let { sharedPreferences ->
             val key = ProfileScopedKey.of(nextEpisodeThresholdMinutesBeforeEndKey)
@@ -1659,6 +1679,7 @@ actual object PlayerSettingsStorage {
         loadNextEpisodeThresholdMode()?.let { put(nextEpisodeThresholdModeKey, encodeSyncString(it)) }
         loadNextEpisodeThresholdPercent()?.let { put(nextEpisodeThresholdPercentKey, encodeSyncFloat(it)) }
         loadNextEpisodeThresholdMinutesBeforeEnd()?.let { put(nextEpisodeThresholdMinutesBeforeEndKey, encodeSyncFloat(it)) }
+        loadWatchedThresholdPercent()?.let { put(watchedThresholdPercentKey, encodeSyncInt(it)) }
         loadPreloadNextEpisodeSources()?.let { put(preloadNextEpisodeSourcesKey, encodeSyncBoolean(it)) }
         loadMiniPlayerEnabled()?.let { put(miniPlayerEnabledKey, encodeSyncBoolean(it)) }
         loadUseLibass()?.let { put(useLibassKey, encodeSyncBoolean(it)) }
@@ -1749,6 +1770,7 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncString(nextEpisodeThresholdModeKey)?.let(::saveNextEpisodeThresholdMode)
         payload.decodeSyncFloat(nextEpisodeThresholdPercentKey)?.let(::saveNextEpisodeThresholdPercent)
         payload.decodeSyncFloat(nextEpisodeThresholdMinutesBeforeEndKey)?.let(::saveNextEpisodeThresholdMinutesBeforeEnd)
+        payload.decodeSyncInt(watchedThresholdPercentKey)?.let(::saveWatchedThresholdPercent)
         payload.decodeSyncBoolean(preloadNextEpisodeSourcesKey)?.let(::savePreloadNextEpisodeSources)
         payload.decodeSyncBoolean(miniPlayerEnabledKey)?.let(::saveMiniPlayerEnabled)
         payload.decodeSyncBoolean(useLibassKey)?.let(::saveUseLibass)

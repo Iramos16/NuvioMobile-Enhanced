@@ -42,9 +42,9 @@ import org.jetbrains.compose.resources.getString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlin.math.abs
+import com.nuvio.app.features.watching.domain.WatchedThreshold
 
 private const val BASE_URL = "https://api.trakt.tv"
-private const val TRAKT_COMPLETION_PERCENT_THRESHOLD = 90f
 private const val HISTORY_PAGE_LIMIT = 1000
 private const val HISTORY_MAX_PAGES = 5
 private const val HISTORY_MAX_PAGES_ALL = 20
@@ -1314,7 +1314,7 @@ object TraktProgressRepository {
             lastPositionMs = 0L,
             durationMs = 0L,
             lastUpdatedEpochMs = rankedTimestamp(item.pausedAt, fallbackIndex),
-            isCompleted = progressPercent >= TRAKT_COMPLETION_PERCENT_THRESHOLD,
+            isCompleted = WatchedThreshold.isReached(progressPercent),
             progressPercent = progressPercent,
             source = WatchProgressSourceTraktPlayback,
         ).normalizedCompletion()
@@ -1349,7 +1349,7 @@ object TraktProgressRepository {
             lastPositionMs = 0L,
             durationMs = 0L,
             lastUpdatedEpochMs = rankedTimestamp(item.pausedAt, fallbackIndex),
-            isCompleted = progressPercent >= TRAKT_COMPLETION_PERCENT_THRESHOLD,
+            isCompleted = WatchedThreshold.isReached(progressPercent),
             progressPercent = progressPercent,
             source = WatchProgressSourceTraktPlayback,
         ).normalizedCompletion()

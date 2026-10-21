@@ -2,6 +2,7 @@ package com.nuvio.app.features.tracking
 
 import co.touchlab.kermit.Logger
 import com.nuvio.app.features.profiles.ProfileRepository
+import com.nuvio.app.features.watching.domain.WatchedThreshold
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -78,10 +79,11 @@ internal suspend fun dispatchTrackingScrobble(
     action: TrackingScrobbleAction,
     event: TrackingScrobbleEvent,
 ): List<TrackingScrobbleFailure> = supervisorScope {
+    val sentAction = action.honoringWatchedThreshold(event.progressPercent)
     scrobblers.map { scrobbler ->
         async {
             try {
-                scrobbler.scrobble(profileId = profileId, action = action, event = event)
+                scrobbler.scrobble(profileId = profileId, action = sentAction, event = event)
                 null
             } catch (error: CancellationException) {
                 throw error
@@ -91,3 +93,19 @@ internal suspend fun dispatchTrackingScrobble(
         }
     }.awaitAll().filterNotNull()
 }
+
+/**
+ * Trakt, Simkl and MDBList mark an item watched whenever a stop scrobble reaches 80 %. A stop
+ * between there and a higher watched threshold is sent as a pause, so the provider keeps it as
+ * playback progress instead.
+ */
+private fun TrackingScrobbleAction.honoringWatchedThreshold(progressPercent: Double): TrackingScrobbleAction =
+    if (
+        this == TrackingScrobbleAction.STOP &&
+        progressPercent >= WatchedThreshold.MIN_PERCENT &&
+        !WatchedThreshold.isReached(progressPercent)
+    ) {
+        TrackingScrobbleAction.PAUSE
+    } else {
+        this
+    }

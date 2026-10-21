@@ -9,8 +9,8 @@ import com.nuvio.app.features.tracking.TrackingAttributedItem
 import com.nuvio.app.features.tracking.WatchProgressSource
 import com.nuvio.app.features.watching.domain.WatchingContentRef
 import kotlinx.serialization.Serializable
+import com.nuvio.app.features.watching.domain.WatchedThreshold
 
-internal const val WatchProgressCompletionPercentThreshold = 90f
 internal const val WatchProgressSourceLocal = "local"
 internal const val WatchProgressSourceTraktPlayback = "trakt_playback"
 internal const val WatchProgressSourceTraktHistory = "trakt_history"
@@ -72,7 +72,7 @@ data class WatchProgressEntry(
 
     val isEffectivelyCompleted: Boolean
         get() = isCompleted ||
-            (normalizedProgressPercent?.let { it >= WatchProgressCompletionPercentThreshold } == true) ||
+            (normalizedProgressPercent?.let(WatchedThreshold::isReached) == true) ||
             (durationMs > 0L && isWatchProgressComplete(lastPositionMs, durationMs, false))
 
     val progressFraction: Float
@@ -96,7 +96,7 @@ data class WatchProgressEntry(
     fun normalizedCompletion(): WatchProgressEntry {
         val completed = isEffectivelyCompleted
         // Preserve the upstream position. Completion is a state derived at the
-        // 90% threshold, not evidence that playback reached the exact duration.
+        // watched threshold, not evidence that playback reached the exact duration.
         // Rewriting it to duration made a pulled 94% row oscillate between 94%
         // and 100% across reloads.
         val normalizedPositionMs = lastPositionMs.coerceAtLeast(0L)

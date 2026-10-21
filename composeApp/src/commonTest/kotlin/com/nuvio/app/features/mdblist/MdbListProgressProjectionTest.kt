@@ -12,13 +12,13 @@ import kotlin.test.assertTrue
 class MdbListProgressProjectionTest {
     @Test
     fun playbackUsesRuntimeAndStopsAtProviderCompletionThreshold() {
-        val playback = mdbListTestPlayback(79.99f).copy(media = mdbListTestMovie().media.copy(runtimeMinutes = 100))
+        val playback = mdbListTestPlayback(89.99f).copy(media = mdbListTestMovie().media.copy(runtimeMinutes = 100))
         val entry = MdbListProgressProjection(MdbListSyncSnapshot(42, playback = listOf(playback))).progress.single()
         assertEquals(6_000_000, entry.durationMs)
-        assertEquals((6_000_000L * 79.99f.toDouble() / 100).toLong(), entry.lastPositionMs)
+        assertEquals((6_000_000L * 89.99f.toDouble() / 100).toLong(), entry.lastPositionMs)
         assertFalse(entry.isEffectivelyCompleted)
         assertEquals("mdblist_playback", entry.source)
-        assertTrue(MdbListProgressProjection(MdbListSyncSnapshot(42, playback = listOf(playback.copy(progress = 80f)))).progress.isEmpty())
+        assertTrue(MdbListProgressProjection(MdbListSyncSnapshot(42, playback = listOf(playback.copy(progress = 90f)))).progress.isEmpty())
     }
 
     @Test
