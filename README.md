@@ -134,6 +134,7 @@ Upstream Nuvio has no Live TV. This fork adds the whole feature.
 | **Library Calendar** — show release date of ongoing series in the library. | Library screen → **calendar icon toggle** | — |
 | **WeTrakr Library** — browse your WeTrakr lists as a Library source once WeTrakr is connected. | Library screen → source picker → **WeTrakr** | — |
 | **AniList Library** — browse your AniList anime lists as a Library source once AniList is connected. | Library screen → source picker → **AniList** | — |
+| **Category & status filters** — filter the Library by Anime, Movies or Series and by one or more watch statuses (Watching, Plan to Watch, On Hold, Completed, Dropped). Status comes from your tracker list on Simkl, AniList and WeTrakr, and from your watch history on Local, Trakt and MDBList. | Library screen → **Category** / **Status** chips beside Sort | All |
 
 ### Downloads
 

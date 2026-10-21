@@ -1,11 +1,16 @@
 package com.nuvio.app.features.catalog
 
+import com.nuvio.app.features.library.LibraryCategory
+import com.nuvio.app.features.library.LibraryFilterSelection
 import com.nuvio.app.features.library.LibraryItem
+import com.nuvio.app.features.library.LibraryWatchSnapshot
 import com.nuvio.app.features.library.LibrarySection
 import com.nuvio.app.features.library.LibrarySortOption
 import com.nuvio.app.features.library.LibrarySourceMode
 import com.nuvio.app.features.library.LibraryUiState
 import com.nuvio.app.features.library.LibraryProviderOrders
+import com.nuvio.app.features.tracking.TrackingListStatus
+import com.nuvio.app.features.watched.watchedItemKey
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -160,6 +165,78 @@ class LibraryCatalogStateTest {
         } finally {
             job.cancelAndJoin()
         }
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun `view all applies the active category filter and follows filter changes`() = runTest {
+        val sectionKey = "trakt:watchlist"
+        val frieren = item("frieren").copy(type = "series", genres = listOf("Anime"))
+        val bebop = item("kitsu:1").copy(type = "series")
+        val dune = item("dune")
+        val library = MutableStateFlow(
+            state(listOf(frieren, dune, bebop), sectionKey).copy(sourceMode = LibrarySourceMode.TRAKT),
+        )
+        val filters = MutableStateFlow(LibraryFilterSelection(category = LibraryCategory.ANIME))
+        val seen = mutableListOf<CatalogUiState>()
+        backgroundScope.launch {
+            library.libraryCatalogStates(target(sectionKey), filters = filters).collect { seen += it }
+        }
+        runCurrent()
+        assertEquals(listOf("frieren", "kitsu:1"), seen.last().items.map { it.id })
+
+        filters.value = LibraryFilterSelection(category = LibraryCategory.MOVIES)
+        runCurrent()
+        assertEquals(listOf("dune"), seen.last().items.map { it.id })
+
+        filters.value = LibraryFilterSelection()
+        runCurrent()
+        assertEquals(listOf("dune", "frieren", "kitsu:1"), seen.last().items.map { it.id })
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun `view all applies the inferred watch status filter`() = runTest {
+        val sectionKey = "trakt:watchlist"
+        val watched = item("watched")
+        val started = item("started")
+        val planned = item("planned")
+        val library = MutableStateFlow(
+            state(listOf(planned, started, watched), sectionKey).copy(sourceMode = LibrarySourceMode.TRAKT),
+        )
+        val filters = MutableStateFlow(
+            LibraryFilterSelection(
+                statuses = setOf(TrackingListStatus.PLAN_TO_WATCH, TrackingListStatus.WATCHING),
+                watch = LibraryWatchSnapshot(
+                    watchedKeys = setOf(watchedItemKey("movie", "watched")),
+                    startedContentIds = setOf("started"),
+                ),
+            ),
+        )
+        val seen = mutableListOf<CatalogUiState>()
+        backgroundScope.launch {
+            library.libraryCatalogStates(target(sectionKey), filters = filters).collect { seen += it }
+        }
+        runCurrent()
+        assertEquals(listOf("planned", "started"), seen.last().items.map { it.id })
+
+        filters.value = filters.value.copy(statuses = setOf(TrackingListStatus.COMPLETED))
+        runCurrent()
+        assertEquals(listOf("watched"), seen.last().items.map { it.id })
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun `view all is empty when the filters exclude the whole section`() = runTest {
+        val library = MutableStateFlow(state(listOf(item("dune"))))
+        val filters = MutableStateFlow(LibraryFilterSelection(category = LibraryCategory.ANIME))
+        val seen = mutableListOf<CatalogUiState>()
+        backgroundScope.launch {
+            library.libraryCatalogStates(target(), filters = filters).collect { seen += it }
+        }
+        runCurrent()
+        assertTrue(seen.last().items.isEmpty())
+        assertFalse(seen.last().isLoading)
     }
 
     private fun target(sectionType: String = "movie") = CatalogTarget.Library(
