@@ -2166,6 +2166,17 @@
     <string name="library_filter_all_types">All types</string>
     <string name="library_filter_list">Select list</string>
     <string name="library_filter_sort">Sort library</string>
+    <string name="library_filter_category">Category</string>
+    <string name="library_category_all">All</string>
+    <string name="library_category_anime">Anime</string>
+    <string name="library_category_movies">Movies</string>
+    <string name="library_category_series">Series</string>
+    <string name="library_filter_status">Watch status</string>
+    <string name="library_status_all">All statuses</string>
+    <string name="library_status_count">%1$d statuses</string>
+    <string name="library_filter_no_matches_title">No matching titles</string>
+    <string name="library_filter_no_matches_message">Try another category or status.</string>
+    <string name="library_filter_clear">Clear filters</string>
     <string name="library_filter_type">Select type</string>
     <string name="library_layout_show_horizontal">Show horizontal shelves</string>
     <string name="library_layout_show_vertical">Show vertical grid</string>

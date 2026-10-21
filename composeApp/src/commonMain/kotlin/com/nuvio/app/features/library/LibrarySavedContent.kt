@@ -13,18 +13,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.nuvio.app.core.i18n.localizedMediaTypeLabel
 import com.nuvio.app.core.poster.withCustomPosterUrl
 import com.nuvio.app.core.ui.NuvioDropdownChip
 import com.nuvio.app.core.ui.NuvioDropdownOption
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.components.PosterGridRow
 import com.nuvio.app.features.home.components.PosterGridSkeletonRow
+import com.nuvio.app.features.tracking.TrackingListStatus
 import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.library_filter_all_types
+import nuvio.composeapp.generated.resources.library_category_all
+import nuvio.composeapp.generated.resources.library_category_anime
+import nuvio.composeapp.generated.resources.library_category_movies
+import nuvio.composeapp.generated.resources.library_category_series
+import nuvio.composeapp.generated.resources.library_filter_category
 import nuvio.composeapp.generated.resources.library_filter_list
 import nuvio.composeapp.generated.resources.library_filter_sort
-import nuvio.composeapp.generated.resources.library_filter_type
 import nuvio.composeapp.generated.resources.library_sort_added_asc
 import nuvio.composeapp.generated.resources.library_sort_added_desc
 import nuvio.composeapp.generated.resources.library_sort_title_asc
@@ -34,25 +37,33 @@ import nuvio.composeapp.generated.resources.library_sort_released_asc
 import nuvio.composeapp.generated.resources.library_sort_released_desc
 import org.jetbrains.compose.resources.stringResource
 
+// Filters stay out of the key: changing it recreates the item and would close the open status sheet.
+internal fun librarySavedControlsKey(
+    sourceMode: LibrarySourceMode,
+    layoutMode: LibraryLayoutMode,
+    sortOption: LibrarySortOption,
+): String = "library-saved-controls:$sourceMode:$layoutMode:$sortOption"
+
 @Composable
 internal fun LibrarySavedControls(
     layoutMode: LibraryLayoutMode,
     sourceMode: LibrarySourceMode,
     sortOption: LibrarySortOption,
+    filters: LibraryFilterSelection,
     verticalProjection: LibraryVerticalProjection,
     onSectionSelected: (String) -> Unit,
-    onTypeSelected: (String?) -> Unit,
+    onCategorySelected: (LibraryCategory) -> Unit,
+    onStatusesSelected: (Set<TrackingListStatus>) -> Unit,
     onSortSelected: (LibrarySortOption) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val sortOptions = availableLibrarySortOptions(sourceMode)
-    val allTypesLabel = stringResource(Res.string.library_filter_all_types)
 
     Row(
         modifier = modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (layoutMode == LibraryLayoutMode.VERTICAL && sourceMode.isRemoteTrackingSource) {
+        if (layoutMode == LibraryLayoutMode.VERTICAL && sourceMode.isRemoteTrackingSource && !sourceMode.hasNativeWatchStatus) {
             val selectedSection = verticalProjection.availableSections
                 .firstOrNull { section -> section.type == verticalProjection.selectedSectionKey }
             NuvioDropdownChip(
@@ -67,26 +78,24 @@ internal fun LibrarySavedControls(
             )
         }
 
-        if (layoutMode == LibraryLayoutMode.VERTICAL) {
-            val typeOptions = buildList {
-                add(NuvioDropdownOption(key = "", label = allTypesLabel))
-                addAll(
-                    verticalProjection.availableTypes.map { type ->
-                        NuvioDropdownOption(key = type, label = localizedMediaTypeLabel(type))
-                    },
-                )
-            }
-            NuvioDropdownChip(
-                title = stringResource(Res.string.library_filter_type),
-                label = verticalProjection.selectedType
-                    ?.let(::localizedMediaTypeLabel)
-                    ?: allTypesLabel,
-                selectedKey = verticalProjection.selectedType.orEmpty(),
-                options = typeOptions,
-                enabled = typeOptions.size > 1,
-                onSelected = { option -> onTypeSelected(option.key.ifBlank { null }) },
-            )
-        }
+        NuvioDropdownChip(
+            title = stringResource(Res.string.library_filter_category),
+            label = libraryCategoryLabel(filters.category),
+            selectedKey = filters.category.name,
+            options = LibraryCategory.entries.map { category ->
+                NuvioDropdownOption(key = category.name, label = libraryCategoryLabel(category))
+            },
+            onSelected = { option ->
+                LibraryCategory.entries
+                    .firstOrNull { it.name == option.key }
+                    ?.let(onCategorySelected)
+            },
+        )
+
+        LibraryStatusFilterChip(
+            selected = filters.statuses,
+            onSelectedChange = onStatusesSelected,
+        )
 
         NuvioDropdownChip(
             title = stringResource(Res.string.library_filter_sort),
@@ -167,6 +176,15 @@ internal fun LazyItemScope.libraryContentTransitionModifier(): Modifier =
         placementSpec = tween(durationMillis = 180),
         fadeOutSpec = tween(durationMillis = 90),
     )
+
+@Composable
+private fun libraryCategoryLabel(category: LibraryCategory): String =
+    when (category) {
+        LibraryCategory.ALL -> stringResource(Res.string.library_category_all)
+        LibraryCategory.ANIME -> stringResource(Res.string.library_category_anime)
+        LibraryCategory.MOVIES -> stringResource(Res.string.library_category_movies)
+        LibraryCategory.SERIES -> stringResource(Res.string.library_category_series)
+    }
 
 @Composable
 private fun librarySortOptionLabel(option: LibrarySortOption): String =

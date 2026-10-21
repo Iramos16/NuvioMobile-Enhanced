@@ -6,6 +6,8 @@ import com.nuvio.app.features.library.LibrarySourceMode
 import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.simkl.DEFAULT_SIMKL_ANIME_ID_PREFERENCE
 import com.nuvio.app.features.simkl.SimklAnimeIdPreference
+import com.nuvio.app.features.watchhistory.DEFAULT_WATCH_HISTORY_MERGE_POLICY
+import com.nuvio.app.features.watchhistory.WatchHistoryMergePolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -59,6 +61,7 @@ data class TraktSettingsUiState(
     val librarySourceMode: LibrarySourceMode = DEFAULT_LIBRARY_SOURCE_MODE,
     val moreLikeThisSource: MoreLikeThisSourcePreference = DEFAULT_MORE_LIKE_THIS_SOURCE,
     val simklAnimeIdPreference: SimklAnimeIdPreference = DEFAULT_SIMKL_ANIME_ID_PREFERENCE,
+    val watchHistoryMergePolicy: WatchHistoryMergePolicy = DEFAULT_WATCH_HISTORY_MERGE_POLICY,
 )
 
 @Serializable
@@ -68,14 +71,43 @@ private data class StoredTraktSettings(
     val librarySourceMode: String? = null,
     val moreLikeThisSource: String? = null,
     val simklAnimeIdPreference: String? = null,
+    val watchHistoryMergePolicy: String? = null,
 )
 
-object TraktSettingsRepository {
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
+private val traktSettingsJson = Json {
+    ignoreUnknownKeys = true
+    encodeDefaults = true
+}
 
+internal fun traktSettingsFromPayload(payload: String?): TraktSettingsUiState {
+    val trimmed = payload.orEmpty().trim()
+    if (trimmed.isEmpty()) return TraktSettingsUiState()
+    val stored = runCatching {
+        traktSettingsJson.decodeFromString<StoredTraktSettings>(trimmed)
+    }.getOrNull() ?: return TraktSettingsUiState()
+    return TraktSettingsUiState(
+        watchProgressSource = WatchProgressSource.fromStorage(stored.watchProgressSource),
+        continueWatchingDaysCap = normalizeTraktContinueWatchingDaysCap(stored.continueWatchingDaysCap),
+        librarySourceMode = librarySourceModeFromStorage(stored.librarySourceMode),
+        moreLikeThisSource = MoreLikeThisSourcePreference.fromStorage(stored.moreLikeThisSource),
+        simklAnimeIdPreference = SimklAnimeIdPreference.fromStorage(stored.simklAnimeIdPreference),
+        watchHistoryMergePolicy = WatchHistoryMergePolicy.fromStorage(stored.watchHistoryMergePolicy),
+    )
+}
+
+internal fun traktSettingsToPayload(state: TraktSettingsUiState): String =
+    traktSettingsJson.encodeToString(
+        StoredTraktSettings(
+            watchProgressSource = state.watchProgressSource.name,
+            continueWatchingDaysCap = state.continueWatchingDaysCap,
+            librarySourceMode = state.librarySourceMode.name,
+            moreLikeThisSource = state.moreLikeThisSource.name,
+            simklAnimeIdPreference = state.simklAnimeIdPreference.name,
+            watchHistoryMergePolicy = state.watchHistoryMergePolicy.name,
+        ),
+    )
+
+object TraktSettingsRepository {
     private val _uiState = MutableStateFlow(TraktSettingsUiState())
     val uiState: StateFlow<TraktSettingsUiState> = _uiState.asStateFlow()
 
@@ -144,44 +176,20 @@ object TraktSettingsRepository {
         com.nuvio.app.features.simkl.SimklSyncRepository.invalidateProjections()
     }
 
+    fun setWatchHistoryMergePolicy(policy: WatchHistoryMergePolicy) {
+        ensureLoaded()
+        if (_uiState.value.watchHistoryMergePolicy == policy) return
+        _uiState.value = _uiState.value.copy(watchHistoryMergePolicy = policy)
+        persist()
+    }
+
     private fun loadFromDisk() {
         hasLoaded = true
-
-        val payload = TraktSettingsStorage.loadPayload().orEmpty().trim()
-        if (payload.isEmpty()) {
-            _uiState.value = TraktSettingsUiState()
-            return
-        }
-
-        val stored = runCatching {
-            json.decodeFromString<StoredTraktSettings>(payload)
-        }.getOrNull()
-
-        _uiState.value = if (stored != null) {
-            TraktSettingsUiState(
-                watchProgressSource = WatchProgressSource.fromStorage(stored.watchProgressSource),
-                continueWatchingDaysCap = normalizeTraktContinueWatchingDaysCap(stored.continueWatchingDaysCap),
-                librarySourceMode = librarySourceModeFromStorage(stored.librarySourceMode),
-                moreLikeThisSource = MoreLikeThisSourcePreference.fromStorage(stored.moreLikeThisSource),
-                simklAnimeIdPreference = SimklAnimeIdPreference.fromStorage(stored.simklAnimeIdPreference),
-            )
-        } else {
-            TraktSettingsUiState()
-        }
+        _uiState.value = traktSettingsFromPayload(TraktSettingsStorage.loadPayload())
     }
 
     private fun persist(state: TraktSettingsUiState = _uiState.value) {
-        TraktSettingsStorage.savePayload(
-            json.encodeToString(
-                StoredTraktSettings(
-                    watchProgressSource = state.watchProgressSource.name,
-                    continueWatchingDaysCap = state.continueWatchingDaysCap,
-                    librarySourceMode = state.librarySourceMode.name,
-                    moreLikeThisSource = state.moreLikeThisSource.name,
-                    simklAnimeIdPreference = state.simklAnimeIdPreference.name,
-                ),
-            ),
-        )
+        TraktSettingsStorage.savePayload(traktSettingsToPayload(state))
     }
 }
 

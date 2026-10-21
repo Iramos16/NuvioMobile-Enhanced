@@ -1094,6 +1094,10 @@ object WatchedRepository {
         }
     }
 
+    /** Read-only copy of local Nuvio watched items, independent of the active tracker source. */
+    internal fun nuvioHistorySnapshot(): List<WatchedItem> =
+        itemsStore.read { nuvioItems, _, _, _ -> nuvioItems.values.toList() }
+
     private fun publish() {
         val (nuvioItems, providerItems) = itemsStore.read { storedNuvioItems, storedProviderItems, _, _ ->
             storedNuvioItems.values.toList() to storedProviderItems.mapValues { (_, itemsByKey) ->

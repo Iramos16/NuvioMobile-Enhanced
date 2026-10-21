@@ -1,6 +1,7 @@
 package com.nuvio.app.features.trakt
 
 import com.nuvio.app.features.library.LibrarySourceMode
+import com.nuvio.app.features.watchhistory.WatchHistoryMergePolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -149,6 +150,27 @@ class TraktSettingsRepositoryTest {
                 isAuthenticated = true,
                 source = MoreLikeThisSourcePreference.TRAKT,
             ),
+        )
+    }
+
+    @Test
+    fun watchHistoryMergePolicy_defaultsToMostRecent() {
+        assertEquals(WatchHistoryMergePolicy.MOST_RECENT, TraktSettingsUiState().watchHistoryMergePolicy)
+        assertEquals(WatchHistoryMergePolicy.MOST_RECENT, traktSettingsFromPayload(null).watchHistoryMergePolicy)
+        assertEquals(WatchHistoryMergePolicy.MOST_RECENT, traktSettingsFromPayload("{}").watchHistoryMergePolicy)
+    }
+
+    @Test
+    fun setWatchHistoryMergePolicy_persistsAndReloads() {
+        val state = TraktSettingsUiState(watchHistoryMergePolicy = WatchHistoryMergePolicy.MOST_COMPLETE)
+        assertEquals(state, traktSettingsFromPayload(traktSettingsToPayload(state)))
+    }
+
+    @Test
+    fun unknownStoredPolicy_fallsBackToDefault() {
+        assertEquals(
+            WatchHistoryMergePolicy.MOST_RECENT,
+            traktSettingsFromPayload("""{"watchHistoryMergePolicy":"BOGUS"}""").watchHistoryMergePolicy,
         )
     }
 }
