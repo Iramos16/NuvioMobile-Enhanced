@@ -140,6 +140,23 @@ class PlayerStreamFailoverRuntimeTest {
     }
 
     @Test
+    fun newEpisodeGetsAFreshRetry() {
+        val controller = RetryCountingController()
+        val runtime = runtime(controller, contentType = "series", videoId = "tt1:1:2")
+        runtime.streamFailoverState = StreamFailoverState(
+            retriedUrl = sourceUrl,
+            alternativesUsed = MAX_FAILOVER_ALTERNATIVES,
+            failedUrls = setOf("https://example.com/episode-1.mp4"),
+            videoId = "tt1:1:1",
+        )
+
+        assertTrue(runtime.tryStreamFailoverAfterError("boom"))
+        assertEquals(1, controller.retries)
+        assertEquals(0, runtime.streamFailoverState.alternativesUsed)
+        assertTrue("https://example.com/episode-1.mp4" in runtime.streamFailoverState.failedUrls)
+    }
+
+    @Test
     fun liveTvFailoverOnlyRetries() {
         val controller = RetryCountingController()
         val runtime = runtime(controller, contentType = "live", videoId = "channel-1")

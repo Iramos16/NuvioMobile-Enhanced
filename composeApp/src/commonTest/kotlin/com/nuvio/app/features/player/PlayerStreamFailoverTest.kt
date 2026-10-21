@@ -4,8 +4,10 @@ import com.nuvio.app.features.streams.StreamBehaviorHints
 import com.nuvio.app.features.streams.StreamItem
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 class PlayerStreamFailoverTest {
     private fun stream(url: String?, addon: String = "A") =
@@ -84,30 +86,63 @@ class PlayerStreamFailoverTest {
         assertEquals("u2", candidate?.url)
     }
 
-    @Test
-    fun `progress under 30s does not reset budget`() {
-        val state = StreamFailoverState(
-            retriedUrl = "u2",
-            alternativesUsed = 2,
-            failedUrls = setOf("u1"),
-            progressBaselineMs = 60_000,
-        )
-        assertSame(state, state.afterProgress(89_999))
+    private val armed = StreamFailoverState(
+        retriedUrl = "u2",
+        alternativesUsed = 2,
+        failedUrls = setOf("u1"),
+        lastProgressPositionMs = 60_000,
+    )
+
+    private fun StreamFailoverState.playThrough(fromMs: Long, toMs: Long, stepMs: Long = 1_000): StreamFailoverState {
+        var state = this
+        var position = fromMs
+        while (position < toMs) {
+            position += stepMs
+            state = state.afterProgress(position)
+        }
+        return state
     }
 
     @Test
-    fun `30s of progress resets budget but keeps failed urls`() {
-        val state = StreamFailoverState(
-            retriedUrl = "u2",
-            alternativesUsed = 2,
-            failedUrls = setOf("u1"),
-            progressBaselineMs = 60_000,
-        )
-        assertEquals(StreamFailoverState(failedUrls = setOf("u1")), state.afterProgress(90_000))
+    fun `progress under 30s does not reset budget`() {
+        val state = armed.playThrough(60_000, 89_000)
+        assertEquals(2, state.alternativesUsed)
+        assertEquals(29_000, state.playedMs)
+    }
+
+    @Test
+    fun `30s of playback resets budget but keeps failed urls`() {
+        assertEquals(StreamFailoverState(failedUrls = setOf("u1")), armed.playThrough(60_000, 90_000))
+    }
+
+    @Test
+    fun `seeking forward does not count as played time`() {
+        val state = armed.afterProgress(120_000)
+        assertEquals(2, state.alternativesUsed)
+        assertEquals(0, state.playedMs)
+        assertEquals(120_000, state.lastProgressPositionMs)
     }
 
     @Test
     fun `default state ignores progress`() {
         assertEquals(StreamFailoverState(), StreamFailoverState().afterProgress(10_000_000))
+    }
+
+    @Test
+    fun `new video resets budget but keeps failed urls`() {
+        val state = armed.copy(videoId = "tt1:1:1")
+        assertEquals(
+            StreamFailoverState(failedUrls = setOf("u1"), videoId = "tt1:1:2"),
+            state.forVideo("tt1:1:2"),
+        )
+        assertSame(state, state.forVideo("tt1:1:1"))
+    }
+
+    @Test
+    fun `leftover source loading stops only when nothing else uses it`() {
+        assertTrue(shouldStopLeftoverSourceLoading(isLoading = true, sourcesPanelOpen = false, failoverRunning = false))
+        assertFalse(shouldStopLeftoverSourceLoading(isLoading = false, sourcesPanelOpen = false, failoverRunning = false))
+        assertFalse(shouldStopLeftoverSourceLoading(isLoading = true, sourcesPanelOpen = true, failoverRunning = false))
+        assertFalse(shouldStopLeftoverSourceLoading(isLoading = true, sourcesPanelOpen = false, failoverRunning = true))
     }
 }
