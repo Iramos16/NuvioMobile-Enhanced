@@ -1350,6 +1350,10 @@
     <string name="settings_playback_render_type_effects_opengl">Effects OpenGL</string>
     <string name="settings_playback_render_type_overlay_canvas">Overlay Canvas</string>
     <string name="settings_playback_render_type_overlay_opengl">Overlay OpenGL (Recommended)</string>
+    <string name="settings_playback_stream_failover">Automatic Stream Failover</string>
+    <string name="settings_playback_stream_failover_description">If a stream fails, retry it once, then try the next streams in the list.</string>
+    <string name="player_failover_retrying">Playback failed — retrying…</string>
+    <string name="player_failover_trying_next">Trying next stream (%1$d/%2$d): %3$s</string>
     <string name="settings_playback_reuse_last_link">Reuse Last Link</string>
     <string name="settings_playback_reuse_last_link_description">Auto-play your last working stream for this same movie/episode when cache is still valid</string>
     <string name="settings_playback_secondary_audio_language">Secondary Audio Language</string>
