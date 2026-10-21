@@ -148,4 +148,41 @@ class RatingsVisibilityTest {
             assertRatingsShown(true)
         }
     }
+
+    @Test
+    fun allEpisodeLayoutsFallBackToTheAddonEpisodeRating() {
+        val layout = mutableStateOf(0)
+        val episode = MetaVideo(id = "tt1234567:1:1", title = "Episode", season = 1, episode = 1, rating = 6.2)
+        val meta = MetaDetails(id = "tt1234567", type = "series", name = "Series", videos = listOf(episode))
+        compose.setContent {
+            NuvioTheme {
+                if (layout.value == 2) {
+                    DetailSeriesListEpisode(
+                        meta = meta,
+                        episode = episode,
+                        progressByVideoId = emptyMap(),
+                        watchedKeys = emptySet(),
+                        episodeRatings = emptyMap(),
+                        episodeRatingsVisibility = EpisodeRatingsVisibility.SHOW_ALL,
+                        blurUnwatchedEpisodes = false,
+                        onEpisodeClick = null,
+                        onEpisodeLongPress = null,
+                    )
+                } else {
+                    DetailSeriesContent(
+                        meta = meta,
+                        episodeCardStyle = if (layout.value == 0) MetaEpisodeCardStyle.Horizontal else MetaEpisodeCardStyle.List,
+                        progressByVideoId = emptyMap(),
+                        watchedKeys = emptySet(),
+                        episodeRatings = emptyMap(),
+                        episodeRatingsVisibility = EpisodeRatingsVisibility.SHOW_ALL,
+                    )
+                }
+            }
+        }
+        for (currentLayout in 0..2) {
+            compose.runOnIdle { layout.value = currentLayout }
+            compose.onNodeWithText("6.2").assertIsDisplayed()
+        }
+    }
 }
