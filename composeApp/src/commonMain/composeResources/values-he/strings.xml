@@ -210,12 +210,10 @@
     <string name="compose_player_resize_fill">מילוי</string>
     <string name="compose_player_resize_fit">התאמה</string>
     <string name="compose_player_resize_zoom">זום</string>
-    <string name="compose_player_seek_back_10">דלג אחורה 10 שניות</string>
     <string name="compose_player_seek_delta_backward">-%1$dשנ׳</string>
     <string name="compose_player_seek_delta_forward">+%1$dשנ׳</string>
     <string name="compose_player_seek_feedback_backward">-%1$dשנ׳</string>
     <string name="compose_player_seek_feedback_forward">+%1$dשנ׳</string>
-    <string name="compose_player_seek_forward_10">דלג קדימה 10 שניות</string>
     <string name="compose_player_sources">מקורות</string>
     <string name="compose_player_style">סגנון</string>
     <string name="compose_player_select_addon_subtitle_first">בחר תחילה כתוביות מתוסף</string>

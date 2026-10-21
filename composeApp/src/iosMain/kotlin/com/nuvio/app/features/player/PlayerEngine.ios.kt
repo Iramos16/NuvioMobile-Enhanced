@@ -352,6 +352,14 @@ actual fun PlatformPlayerSurface(
                 bridge.setSubtitleDelayMs(targetMs)
             }
 
+            override val supportsAudioDelay: Boolean get() = true
+
+            override fun setAudioDelayMs(delayMs: Int) {
+                val targetMs = clampAudioDelayMs(delayMs)
+                InAppLogger.info("Player/iOS", "set audio delay ms=$targetMs")
+                bridge.setAudioDelayMs(targetMs)
+            }
+
             override fun applySubtitleStyle(style: SubtitleStyleState) {
                 InAppLogger.debug(
                     "Player/iOS",

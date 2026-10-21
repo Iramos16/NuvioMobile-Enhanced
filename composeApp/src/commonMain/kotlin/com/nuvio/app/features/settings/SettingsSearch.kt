@@ -646,6 +646,28 @@ internal fun settingsSearchEntries(
                 stringResource(Res.string.settings_playback_swipe_to_seek),
                 stringResource(Res.string.settings_playback_swipe_to_seek_description),
             ),
+            PlaybackSearchRow("skip-forward", stringResource(Res.string.settings_playback_skip_forward)),
+            PlaybackSearchRow("skip-back", stringResource(Res.string.settings_playback_skip_back)),
+            PlaybackSearchRow(
+                "brightness-swipe",
+                stringResource(Res.string.settings_playback_brightness_swipe),
+                stringResource(Res.string.settings_playback_brightness_swipe_description),
+            ),
+            PlaybackSearchRow(
+                "volume-swipe",
+                stringResource(Res.string.settings_playback_volume_swipe),
+                stringResource(Res.string.settings_playback_volume_swipe_description),
+            ),
+            PlaybackSearchRow(
+                "double-tap-seek",
+                stringResource(Res.string.settings_playback_double_tap_seek),
+                stringResource(Res.string.settings_playback_double_tap_seek_description),
+            ),
+            PlaybackSearchRow(
+                "swap-gesture-sides",
+                stringResource(Res.string.settings_playback_swap_gesture_sides),
+                stringResource(Res.string.settings_playback_swap_gesture_sides_description),
+            ),
             PlaybackSearchRow(
                 "movie-recommendations",
                 stringResource(Res.string.settings_playback_movie_recommendations),

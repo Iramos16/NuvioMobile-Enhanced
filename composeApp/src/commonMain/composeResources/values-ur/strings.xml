@@ -458,12 +458,10 @@
     <string name="compose_player_resize_fill">اسکرین بھریں</string>
     <string name="compose_player_resize_fit">اسکرین کے مطابق</string>
     <string name="compose_player_resize_zoom">زوم</string>
-    <string name="compose_player_seek_back_10">10 سیکنڈ پیچھے جائیں</string>
     <string name="compose_player_seek_delta_backward">-%1$ds</string>
     <string name="compose_player_seek_delta_forward">+%1$ds</string>
     <string name="compose_player_seek_feedback_backward">-%1$ds</string>
     <string name="compose_player_seek_feedback_forward">+%1$ds</string>
-    <string name="compose_player_seek_forward_10">10 سیکنڈ آگے جائیں</string>
     <string name="compose_player_sources">ذرائع</string>
     <string name="compose_player_style">انداز</string>
     <string name="compose_player_select_addon_subtitle_first">پہلے ایک Addon subtitle منتخب کریں</string>

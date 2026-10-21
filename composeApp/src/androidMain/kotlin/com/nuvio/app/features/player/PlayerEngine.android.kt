@@ -109,6 +109,8 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 private const val TAG = "NuvioPlayer"
 private const val PLAYER_DIAGNOSTIC_TAG = "NuvioPlayerDiag"
@@ -328,6 +330,8 @@ private fun ExoPlayerSurface(
     var subtitleDelayMs by remember(playerSourceKey) { mutableStateOf(0) }
     var selectedExternalSubtitleMimeType by remember(playerSourceKey) { mutableStateOf<String?>(null) }
     val latestSubtitleDelayMs = rememberUpdatedState(subtitleDelayMs)
+    val requestedAudioDelayUs = remember(playerSourceKey) { AtomicLong(0L) }
+    val delayedAudioSinkRef = remember { AtomicReference<DelayedAudioSink?>(null) }
     val latestExternalSubtitleMimeType = rememberUpdatedState(selectedExternalSubtitleMimeType)
     var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
     var videoAspectRatio by remember(playerSourceKey) { mutableStateOf(0f) }
@@ -454,9 +458,10 @@ private fun ExoPlayerSurface(
                 useLongReadTimeout = isLoopbackPlaybackSource(sourceUrl),
             ),
         )
-        val renderersFactory = SubtitleOffsetRenderersFactory(
+        val subtitleOffsetRenderersFactory = SubtitleOffsetRenderersFactory(
             context = context,
             subtitleDelayUsProvider = { latestSubtitleDelayMs.value.toLong() * 1_000L },
+            audioDelayUsProvider = requestedAudioDelayUs::get,
             shouldNormalizeCuePositionProvider = {
                 latestExternalSubtitleMimeType.value == MimeTypes.TEXT_VTT
             },
@@ -467,6 +472,7 @@ private fun ExoPlayerSurface(
                 playerViewRef?.videoBoundsFraction(latestVideoAspectRatio.value)
             },
         )
+        val renderersFactory = subtitleOffsetRenderersFactory
             .setExtensionRendererMode(effectiveDecoderPriority)
             .setEnableDecoderFallback(true)
             .setMapDV7ToHevc(playerSettings.mapDV7ToHevc)
@@ -542,6 +548,8 @@ private fun ExoPlayerSurface(
             hasActiveSubtitle = false,
             useCustomSubtitles = false,
         )
+        // Tunneled video is timed by the audio hardware, so a shifted sink clock has no effect.
+        delayedAudioSinkRef.set(subtitleOffsetRenderersFactory.delayedAudioSink.takeUnless { playerSettings.tunnelingEnabled })
         player
     }
 
@@ -1324,6 +1332,17 @@ private fun ExoPlayerSurface(
                     val targetMs = delayMs.coerceIn(SUBTITLE_DELAY_MIN_MS, SUBTITLE_DELAY_MAX_MS)
                     InAppLogger.info("ExoPlayer/Android", "set subtitle delay ms=$targetMs")
                     subtitleDelayMs = targetMs
+                }
+
+                override val supportsAudioDelay: Boolean
+                    get() = delayedAudioSinkRef.get() != null
+
+                override fun setAudioDelayMs(delayMs: Int) {
+                    val sink = delayedAudioSinkRef.get() ?: return
+                    val targetMs = clampAudioDelayMs(delayMs)
+                    InAppLogger.info("ExoPlayer/Android", "set audio delay ms=$targetMs")
+                    requestedAudioDelayUs.set(targetMs * 1_000L)
+                    sink.requestFlush()
                 }
             }),
         )
@@ -2314,6 +2333,16 @@ private class NuvioLibmpvView(
                 InAppLogger.info("MPV/Android", "set subtitle delay ms=$targetMs")
                 executeMpv {
                     mpv.setPropertyDouble("sub-delay", targetMs / 1000.0)
+                }
+            }
+
+            override val supportsAudioDelay: Boolean get() = true
+
+            override fun setAudioDelayMs(delayMs: Int) {
+                val targetMs = clampAudioDelayMs(delayMs)
+                InAppLogger.info("MPV/Android", "set audio delay ms=$targetMs")
+                executeMpv {
+                    mpv.setPropertyDouble("audio-delay", targetMs / 1000.0)
                 }
             }
         }
@@ -3373,6 +3402,7 @@ private fun PlayerView.videoBoundsFraction(aspectRatio: Float): RectF? {
 private class SubtitleOffsetRenderersFactory(
     context: Context,
     private val subtitleDelayUsProvider: () -> Long,
+    private val audioDelayUsProvider: () -> Long,
     private val shouldNormalizeCuePositionProvider: () -> Boolean,
     private val shouldStripSdhProvider: () -> Boolean,
     private val volumeBoostAudioProcessor: PlayerOutputAudioProcessor,
@@ -3389,8 +3419,22 @@ private class SubtitleOffsetRenderersFactory(
             .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
             .setAudioProcessors(arrayOf(volumeBoostAudioProcessor))
             .build()
-        return if (audioPassthroughEnabled) sink else PcmOnlyAudioSink(sink)
+        val baseSink = if (audioPassthroughEnabled) sink else PcmOnlyAudioSink(sink)
+        delayedAudioSink = null
+        return try {
+            DelayedAudioSink(baseSink, audioDelayUsProvider).also { delayedAudioSink = it }
+        } catch (error: Exception) {
+            InAppLogger.warn(
+                "ExoPlayer/Android",
+                "audio delay sink unavailable: ${InAppLogger.throwableSummary(error)}",
+            )
+            baseSink
+        }
     }
+
+    /** Set by [buildAudioSink] when the delay wrapper was built; null means audio delay is unsupported. */
+    var delayedAudioSink: DelayedAudioSink? = null
+        private set
 
     override fun buildTextRenderers(
         context: Context,

@@ -231,12 +231,10 @@
     <string name="compose_player_resize_fill">Πλήρωση</string>
     <string name="compose_player_resize_fit">Προσαρμογή</string>
     <string name="compose_player_resize_zoom">Ζουμ</string>
-    <string name="compose_player_seek_back_10">Μετακίνηση 10 δευτερόλεπτα πίσω</string>
     <string name="compose_player_seek_delta_backward">-%1$ds</string>
     <string name="compose_player_seek_delta_forward">+%1$ds</string>
     <string name="compose_player_seek_feedback_backward">-%1$ds</string>
     <string name="compose_player_seek_feedback_forward">+%1$ds</string>
-    <string name="compose_player_seek_forward_10">Μετακίνηση 10 δευτερόλεπτα μπροστά</string>
     <string name="compose_player_sources">Πηγές</string>
     <string name="compose_player_style">Στυλ</string>
     <string name="compose_player_subs">Υπότιτλοι</string>

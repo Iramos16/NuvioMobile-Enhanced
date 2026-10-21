@@ -375,12 +375,10 @@
     <string name="compose_player_resize_fill">塗りつぶし</string>
     <string name="compose_player_resize_fit">フィット</string>
     <string name="compose_player_resize_zoom">ズーム</string>
-    <string name="compose_player_seek_back_10">10秒戻る</string>
     <string name="compose_player_seek_delta_backward">-%1$ds</string>
     <string name="compose_player_seek_delta_forward">+%1$ds</string>
     <string name="compose_player_seek_feedback_backward">-%1$ds</string>
     <string name="compose_player_seek_feedback_forward">+%1$ds</string>
-    <string name="compose_player_seek_forward_10">10秒進む</string>
     <string name="compose_player_sources">ソース</string>
     <string name="compose_player_style">スタイル</string>
     <string name="compose_player_select_addon_subtitle_first">アドオンの字幕を先に選択してください</string>

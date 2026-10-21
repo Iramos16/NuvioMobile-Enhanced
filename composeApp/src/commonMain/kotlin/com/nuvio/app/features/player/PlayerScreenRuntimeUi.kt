@@ -234,9 +234,11 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             .playerSurfaceTapGestures(
                 layoutSize = layoutSize,
                 playbackGesturesEnabled = playbackGesturesEnabled,
-                playerControlsLockedState = gestureCallbacks.playerControlsLocked,
+                gestureFlags = gestureCallbacks.gestureFlags.value,
+                playerControlsLocked = gestureCallbacks.playerControlsLocked.value,
                 onSurfaceTap = gestureCallbacks.onSurfaceTap,
                 onSurfaceDoubleTap = gestureCallbacks.onSurfaceDoubleTap,
+                activeSeekStackDirectionState = gestureCallbacks.activeSeekStackDirection,
                 activateHoldToSpeedState = gestureCallbacks.activateHoldToSpeed,
                 deactivateHoldToSpeedState = gestureCallbacks.deactivateHoldToSpeed,
                 revealLockedOverlayState = gestureCallbacks.revealLockedOverlay,
@@ -248,8 +250,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 playbackGesturesEnabled = playbackGesturesEnabled,
                 sideGestureSystemEdgeExclusionPx = sideGestureSystemEdgeExclusionPx,
                 playerControlsLockedState = gestureCallbacks.playerControlsLocked,
-                touchGesturesEnabledState = gestureCallbacks.touchGesturesEnabled,
-                swipeToSeekEnabledState = gestureCallbacks.swipeToSeekEnabled,
+                gestureFlagsState = gestureCallbacks.gestureFlags,
                 isHoldToSpeedGestureActiveState = gestureCallbacks.isHoldToSpeedGestureActive,
                 currentPositionMsState = gestureCallbacks.currentPositionMs,
                 currentDurationMsState = gestureCallbacks.currentDurationMs,
@@ -264,7 +265,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             .playerSurfacePinchGestures(
                 playbackGesturesEnabled = playbackGesturesEnabled,
                 playerControlsLockedState = gestureCallbacks.playerControlsLocked,
-                touchGesturesEnabledState = gestureCallbacks.touchGesturesEnabled,
+                gestureFlagsState = gestureCallbacks.gestureFlags,
                 onPinchZoomState = onPinchZoom,
             ),
     ) {
@@ -372,6 +373,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 .padding(top = 16.dp, start = horizontalSafePadding, end = horizontalSafePadding),
         )
         RenderPlayerModals()
+        RenderSleepTimer()
         RenderParty(runtime = runtime)
         }
     }
@@ -476,8 +478,10 @@ private fun PlayerScreenRuntime.RenderPlayerControls(isEpisode: Boolean) {
             },
             partyActive = partyActive,
             onTogglePlayback = { togglePlayback() },
-            onSeekBack = { seekBy(-10_000L) },
-            onSeekForward = { seekBy(10_000L) },
+            seekBackSeconds = playerSettingsUiState.seekBackSeconds,
+            seekForwardSeconds = playerSettingsUiState.seekForwardSeconds,
+            onSeekBack = { seekBy(-seekStepMs(PlayerSeekDirection.Backward)) },
+            onSeekForward = { seekBy(seekStepMs(PlayerSeekDirection.Forward)) },
             onResizeModeClick = { cycleResizeMode() },
             onSpeedClick = if (!isLiveTvPlayback) {
                 {
@@ -543,6 +547,11 @@ private fun PlayerScreenRuntime.RenderPlayerControls(isEpisode: Boolean) {
                 )
                 showStreamInfoModal = true
             },
+            onSleepTimerClick = {
+                showSleepTimerSheet = true
+                controlsVisible = false
+            },
+            sleepTimerLabel = sleepTimerChipLabel(),
             onRateClick = if (canRate) {
                 { showUserRatingSheet = true }
             } else null,
@@ -877,6 +886,9 @@ private fun PlayerScreenRuntime.RenderPlayerModals() {
             }
         },
         onAudioModalDismissed = { showAudioModal = false },
+        audioDelayMs = audioDelayState.delayMs,
+        supportsAudioDelay = playerController?.supportsAudioDelay == true,
+        onAudioDelayChanged = { delayMs -> setAudioDelay(delayMs) },
         showSubtitleModal = showSubtitleModal,
         subtitleTracks = serverSubtitleTracks.ifEmpty { subtitleTracks },
         selectedSubtitleIndex = if (serverSubtitleTracks.isEmpty()) {

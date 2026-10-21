@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntSize
 import com.nuvio.app.core.logging.InAppLogger
@@ -16,26 +17,34 @@ import kotlin.math.roundToLong
 internal fun Modifier.playerSurfaceTapGestures(
     layoutSize: IntSize,
     playbackGesturesEnabled: Boolean,
-    playerControlsLockedState: State<Boolean>,
+    gestureFlags: PlayerGestureFlags,
+    playerControlsLocked: Boolean,
     onSurfaceTap: State<(Offset) -> Unit>,
     onSurfaceDoubleTap: State<(Offset) -> Unit>,
+    activeSeekStackDirectionState: State<PlayerSeekDirection?>,
     activateHoldToSpeedState: State<() -> Unit>,
     deactivateHoldToSpeedState: State<() -> Unit>,
     revealLockedOverlayState: State<() -> Unit>,
 ): Modifier =
-    pointerInput(layoutSize, playbackGesturesEnabled) {
+    pointerInput(
+        layoutSize,
+        playbackGesturesEnabled,
+        gestureFlags.doubleTapEnabled,
+        gestureFlags.holdToSpeedEnabled,
+        playerControlsLocked,
+    ) {
         detectTapGestures(
             onPress = {
                 tryAwaitRelease()
                 deactivateHoldToSpeedState.value()
             },
             onTap = { offset -> onSurfaceTap.value(offset) },
-            onDoubleTap = if (playbackGesturesEnabled) {
+            onDoubleTap = if (playbackGesturesEnabled && gestureFlags.doubleTapEnabled) {
                 { offset -> onSurfaceDoubleTap.value(offset) }
             } else null,
-            onLongPress = if (playbackGesturesEnabled) {
+            onLongPress = if (playbackGesturesEnabled && (gestureFlags.holdToSpeedEnabled || playerControlsLocked)) {
                 {
-                    if (playerControlsLockedState.value) {
+                    if (playerControlsLocked) {
                         revealLockedOverlayState.value()
                     } else {
                         activateHoldToSpeedState.value()
@@ -43,6 +52,55 @@ internal fun Modifier.playerSurfaceTapGestures(
                 }
             } else null,
         )
+    }.playerSurfaceSeekStackTaps(
+        playbackGesturesEnabled = playbackGesturesEnabled,
+        doubleTapEnabled = gestureFlags.doubleTapEnabled,
+        playerControlsLocked = playerControlsLocked,
+        onSurfaceDoubleTap = onSurfaceDoubleTap,
+        activeSeekStackDirectionState = activeSeekStackDirectionState,
+    )
+
+/**
+ * While a double-tap seek is still stacking, a single tap on the same side adds one more step at
+ * once instead of waiting out the double-tap timeout (which would toggle the controls). It sits
+ * inside the tap detector and consumes the tap in the main pass, so the detector never sees it,
+ * while buttons drawn above the surface still get their taps first.
+ */
+private fun Modifier.playerSurfaceSeekStackTaps(
+    playbackGesturesEnabled: Boolean,
+    doubleTapEnabled: Boolean,
+    playerControlsLocked: Boolean,
+    onSurfaceDoubleTap: State<(Offset) -> Unit>,
+    activeSeekStackDirectionState: State<PlayerSeekDirection?>,
+): Modifier =
+    pointerInput(playbackGesturesEnabled, doubleTapEnabled, playerControlsLocked) {
+        if (!playbackGesturesEnabled || !doubleTapEnabled || playerControlsLocked) return@pointerInput
+        awaitEachGesture {
+            val down = awaitFirstDown(pass = PointerEventPass.Main)
+            val direction = activeSeekStackDirectionState.value ?: return@awaitEachGesture
+            val width = size.width.toFloat().takeIf { it > 0f } ?: return@awaitEachGesture
+            val tapDirection = when {
+                down.position.x < width * PlayerLeftGestureBoundary -> PlayerSeekDirection.Backward
+                down.position.x > width * PlayerRightGestureBoundary -> PlayerSeekDirection.Forward
+                else -> null
+            }
+            if (tapDirection != direction) return@awaitEachGesture
+            down.consume()
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Main)
+                if (event.changes.count { it.pressed } > 1) return@awaitEachGesture
+                val change = event.changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
+                if (!change.pressed) {
+                    change.consume()
+                    onSurfaceDoubleTap.value(down.position)
+                    return@awaitEachGesture
+                }
+                if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+                    return@awaitEachGesture
+                }
+                change.consume()
+            }
+        }
     }
 
 internal fun Modifier.playerSurfaceDragGestures(
@@ -52,8 +110,7 @@ internal fun Modifier.playerSurfaceDragGestures(
     playbackGesturesEnabled: Boolean,
     sideGestureSystemEdgeExclusionPx: Float,
     playerControlsLockedState: State<Boolean>,
-    touchGesturesEnabledState: State<Boolean>,
-    swipeToSeekEnabledState: State<Boolean>,
+    gestureFlagsState: State<PlayerGestureFlags>,
     isHoldToSpeedGestureActiveState: State<Boolean>,
     currentPositionMsState: State<Long>,
     currentDurationMsState: State<Long>,
@@ -84,7 +141,8 @@ internal fun Modifier.playerSurfaceDragGestures(
                 }
                 return@awaitEachGesture
             }
-            if (!touchGesturesEnabledState.value) {
+            val gestureFlags = gestureFlagsState.value
+            if (!gestureFlags.master) {
                 return@awaitEachGesture
             }
             val controller = gestureController
@@ -95,11 +153,10 @@ internal fun Modifier.playerSurfaceDragGestures(
             val isInSideGestureSystemEdge =
                 down.position.y <= sideGestureEdgeExclusionPx ||
                     down.position.y >= height - sideGestureEdgeExclusionPx
-            val region = when {
-                isInSideGestureSystemEdge -> null
-                down.position.x < width * PlayerLeftGestureBoundary -> PlayerSideGesture.Brightness
-                down.position.x > width * PlayerRightGestureBoundary -> PlayerSideGesture.Volume
-                else -> null
+            val region = if (isInSideGestureSystemEdge) {
+                null
+            } else {
+                gestureFlags.sideGestureFor(down.position.x / width)
             }
 
             val initialBrightness = if (region == PlayerSideGesture.Brightness) {
@@ -148,7 +205,7 @@ internal fun Modifier.playerSurfaceDragGestures(
                         viewConfiguration.touchSlop * PlayerHorizontalGestureTouchSlopMultiplier
                     val horizontalDominant =
                         !holdToSpeedActive &&
-                            swipeToSeekEnabledState.value &&
+                            gestureFlags.swipeToSeek &&
                             abs(totalDx) > horizontalGestureActivationSlop &&
                             abs(totalDx) > abs(totalDy) * PlayerHorizontalGestureDominanceRatio
                     val verticalDominant =
@@ -252,7 +309,7 @@ internal fun Modifier.playerSurfaceDragGestures(
 internal fun Modifier.playerSurfacePinchGestures(
     playbackGesturesEnabled: Boolean,
     playerControlsLockedState: State<Boolean>,
-    touchGesturesEnabledState: State<Boolean>,
+    gestureFlagsState: State<PlayerGestureFlags>,
     onPinchZoomState: State<(zoomFactor: Float) -> Unit>,
 ): Modifier =
     pointerInput(playbackGesturesEnabled) {
@@ -262,7 +319,7 @@ internal fun Modifier.playerSurfacePinchGestures(
             do {
                 val event = awaitPointerEvent()
                 val multiTouch = event.changes.count { it.pressed } > 1
-                if (multiTouch && !playerControlsLockedState.value && touchGesturesEnabledState.value) {
+                if (multiTouch && !playerControlsLockedState.value && gestureFlagsState.value.master) {
                     val zoom = event.calculateZoom()
                     if (zoom != 1f) onPinchZoomState.value(zoom)
                     event.changes.forEach { it.consume() }

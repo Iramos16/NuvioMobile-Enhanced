@@ -174,6 +174,23 @@ internal class PlayerScreenRuntime(
     var isMiniPresentation by mutableStateOf(false)
     var speedBoostRestoreSpeed by mutableStateOf<Float?>(null)
     var isHoldToSpeedGestureActive by mutableStateOf(false)
+    /** Speed the user chose this session (null = never chosen). In-memory only. */
+    var sessionPlaybackSpeed by mutableStateOf<Float?>(null)
+    var sessionSpeedAppliedKey by mutableStateOf<PlaybackKey?>(null)
+    var sessionSpeedAppliedController: PlayerEngineController? = null
+    /** In-memory only: the sleep timer never outlives the player screen. */
+    var sleepTimerMode by mutableStateOf<SleepTimerMode>(SleepTimerMode.Off)
+    var sleepTimerPromptPending by mutableStateOf(false)
+    var showSleepTimerSheet by mutableStateOf(false)
+    /** Last tick time, so the header chip counts down without reading the clock in composition. */
+    var sleepTimerNowMs by mutableStateOf(0L)
+    /** Set once an end-of-episode timer fires so next-episode autoplay stays off for this episode. */
+    var sleepTimerSuppressAutoPlay by mutableStateOf(false)
+    var sleepTimerClock: () -> Long = { kotlin.time.Clock.System.now().toEpochMilliseconds() }
+    /** Seam for tests: true when the party forbids this user from pausing or resuming. */
+    var sleepTimerPartyLocked: () -> Boolean = { isPartyControlLocked }
+    var sleepFadeStartedAtMs: Long? = null
+    var sleepFadeStartVolume: Float = 1f
     var initialSeekApplied by mutableStateOf(
         initialPositionMs <= 0L && ((initialProgressFraction ?: 0f) <= 0f),
     )
@@ -263,6 +280,8 @@ internal class PlayerScreenRuntime(
     var autoFetchedAddonSubtitlesForKey by mutableStateOf<String?>(null)
     var trackPreferenceRestoreApplied by mutableStateOf(false)
     var subtitleDelayMs by mutableStateOf(0)
+    /** In-memory only, keyed by stream URL; a different stream resets it to 0. */
+    var audioDelayState by mutableStateOf(AudioDelayState(streamUrl = null, delayMs = 0))
     var subtitleAutoSyncState by mutableStateOf(SubtitleAutoSyncUiState())
     var showSubtitleSyncByEar by mutableStateOf(false)
     var subtitleSyncHeardPositionMs by mutableStateOf<Long?>(null)

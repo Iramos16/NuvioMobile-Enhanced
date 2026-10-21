@@ -370,12 +370,10 @@
     <string name="compose_player_resize_fill">Preencher</string>
     <string name="compose_player_resize_fit">Ajustar</string>
     <string name="compose_player_resize_zoom">Zoom</string>
-    <string name="compose_player_seek_back_10">Recuar 10 segundos</string>
     <string name="compose_player_seek_delta_backward">-%1$ds</string>
     <string name="compose_player_seek_delta_forward">+%1$ds</string>
     <string name="compose_player_seek_feedback_backward">-%1$ds</string>
     <string name="compose_player_seek_feedback_forward">+%1$ds</string>
-    <string name="compose_player_seek_forward_10">Avançar 10 segundos</string>
     <string name="compose_player_sources">Fontes</string>
     <string name="compose_player_style">Estilo</string>
     <string name="compose_player_select_addon_subtitle_first">Seleciona primeiro uma legenda de um addon</string>

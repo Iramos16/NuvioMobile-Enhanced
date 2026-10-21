@@ -31,10 +31,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ListAlt
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.Forward
 import androidx.compose.material.icons.rounded.Forward10
+import androidx.compose.material.icons.rounded.Forward30
+import androidx.compose.material.icons.rounded.Forward5
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material.icons.rounded.Star
@@ -43,7 +47,10 @@ import androidx.compose.material.icons.rounded.CastConnected
 import androidx.compose.material.icons.rounded.PictureInPictureAlt
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.LockOpen
+import androidx.compose.material.icons.rounded.Replay
 import androidx.compose.material.icons.rounded.Replay10
+import androidx.compose.material.icons.rounded.Replay30
+import androidx.compose.material.icons.rounded.Replay5
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Tv
@@ -128,6 +135,8 @@ internal fun PlayerControlsShell(
     onPartyClick: (() -> Unit)? = null,
     partyActive: Boolean = false,
     onTogglePlayback: () -> Unit,
+    seekBackSeconds: Int = 10,
+    seekForwardSeconds: Int = 10,
     onSeekBack: () -> Unit,
     onSeekForward: () -> Unit,
     onResizeModeClick: () -> Unit,
@@ -144,6 +153,8 @@ internal fun PlayerControlsShell(
     onOrientationToggleClick: (() -> Unit)? = null,
     isPortraitPlayback: Boolean = false,
     onInfoClick: (() -> Unit)? = null,
+    onSleepTimerClick: (() -> Unit)? = null,
+    sleepTimerLabel: String? = null,
     onRateClick: (() -> Unit)? = null,
     userRating: Int? = null,
     onSourcesClick: (() -> Unit)? = null,
@@ -240,6 +251,8 @@ internal fun PlayerControlsShell(
                     onOrientationToggleClick = onOrientationToggleClick,
                     isPortraitPlayback = isPortraitPlayback,
                     onInfoClick = onInfoClick,
+                    onSleepTimerClick = onSleepTimerClick,
+                    sleepTimerLabel = sleepTimerLabel,
                     onRateClick = onRateClick,
                     userRating = userRating,
                     onOpenInExternalPlayer = onOpenInExternalPlayer,
@@ -290,6 +303,8 @@ internal fun PlayerControlsShell(
                     CenterControls(
                         snapshot = playbackSnapshot,
                         metrics = metrics,
+                        seekBackSeconds = seekBackSeconds,
+                        seekForwardSeconds = seekForwardSeconds,
                         onSeekBack = {
                             if (!useLegacyLayout) onInteraction()
                             onSeekBack()
@@ -410,6 +425,8 @@ internal fun PlayerControlsShell(
                         onQualityClick = onQualityClick,
                         onPictureInPictureClick = onPictureInPictureClick,
                         onInfoClick = onInfoClick,
+                        onSleepTimerClick = onSleepTimerClick,
+                        sleepTimerLabel = sleepTimerLabel,
                         onRateClick = onRateClick,
                         userRating = userRating,
                         onInteraction = onInteraction,
@@ -443,6 +460,8 @@ private fun PlayerHeader(
     onOrientationToggleClick: (() -> Unit)? = null,
     isPortraitPlayback: Boolean = false,
     onInfoClick: (() -> Unit)?,
+    onSleepTimerClick: (() -> Unit)? = null,
+    sleepTimerLabel: String? = null,
     onRateClick: (() -> Unit)? = null,
     userRating: Int? = null,
     onOpenInExternalPlayer: (() -> Unit)?,
@@ -625,6 +644,26 @@ private fun PlayerHeader(
                             onClick = onRateClick,
                         )
                     }
+                    if (onSleepTimerClick != null) {
+                        if (sleepTimerLabel != null) {
+                            Text(
+                                text = sleepTimerLabel,
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelLarge,
+                                modifier = Modifier
+                                    .align(Alignment.CenterVertically)
+                                    .clickable(onClick = onSleepTimerClick),
+                            )
+                        }
+                        PlayerHeaderIconButton(
+                            icon = Icons.Rounded.Bedtime,
+                            contentDescription = stringResource(Res.string.sleep_timer_title),
+                            buttonSize = metrics.headerIconSize + 16.dp,
+                            iconSize = metrics.headerIconSize,
+                            onClick = onSleepTimerClick,
+                            tint = if (sleepTimerLabel != null) MaterialTheme.colorScheme.primary else Color.White,
+                        )
+                    }
                     if (onInfoClick != null) {
                         PlayerHeaderIconButton(
                             icon = Icons.Rounded.Info,
@@ -684,6 +723,8 @@ internal fun PlayerHeaderIconButton(
 private fun CenterControls(
     snapshot: PlayerPlaybackSnapshot,
     metrics: PlayerLayoutMetrics,
+    seekBackSeconds: Int,
+    seekForwardSeconds: Int,
     onSeekBack: () -> Unit,
     onSeekForward: () -> Unit,
     onTogglePlayback: () -> Unit,
@@ -695,8 +736,9 @@ private fun CenterControls(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         SideControlButton(
-            icon = Icons.Rounded.Replay10,
-            contentDescription = stringResource(Res.string.compose_player_seek_back_10),
+            icon = seekIcon(seekBackSeconds, forward = false),
+            badgeSeconds = seekBackSeconds.takeIf { seekIcon(it, forward = false) == Icons.Rounded.Replay },
+            contentDescription = stringResource(Res.string.compose_player_seek_back_seconds, seekBackSeconds),
             metrics = metrics,
             onClick = onSeekBack,
         )
@@ -707,17 +749,31 @@ private fun CenterControls(
             onClick = onTogglePlayback,
         )
         SideControlButton(
-            icon = Icons.Rounded.Forward10,
-            contentDescription = stringResource(Res.string.compose_player_seek_forward_10),
+            icon = seekIcon(seekForwardSeconds, forward = true),
+            badgeSeconds = seekForwardSeconds.takeIf { seekIcon(it, forward = true) == Icons.Rounded.Forward },
+            contentDescription = stringResource(Res.string.compose_player_seek_forward_seconds, seekForwardSeconds),
             metrics = metrics,
             onClick = onSeekForward,
         )
     }
 }
 
+/**
+ * The material set only ships numbered arrows for 5, 10 and 30 seconds; the other choices use the
+ * plain arrow with the seconds drawn on top of it.
+ */
+private fun seekIcon(seconds: Int, forward: Boolean): androidx.compose.ui.graphics.vector.ImageVector =
+    when (seconds) {
+        5 -> if (forward) Icons.Rounded.Forward5 else Icons.Rounded.Replay5
+        10 -> if (forward) Icons.Rounded.Forward10 else Icons.Rounded.Replay10
+        30 -> if (forward) Icons.Rounded.Forward30 else Icons.Rounded.Replay30
+        else -> if (forward) Icons.Rounded.Forward else Icons.Rounded.Replay
+    }
+
 @Composable
 private fun SideControlButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    badgeSeconds: Int?,
     contentDescription: String,
     metrics: PlayerLayoutMetrics,
     onClick: () -> Unit,
@@ -739,6 +795,14 @@ private fun SideControlButton(
             tint = Color.White,
             modifier = Modifier.size(metrics.playIconSize),
         )
+        if (badgeSeconds != null) {
+            Text(
+                text = badgeSeconds.toString(),
+                color = Color.White,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
     }
 }
 

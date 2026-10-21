@@ -111,6 +111,37 @@ object PlayerNextEpisodeRules {
     }
 
     /**
+     * The earliest position at which [shouldShowNextEpisodeCard] is true, i.e. where next-episode
+     * autoplay would start. The rule is monotonic in position, so this searches it instead of
+     * duplicating its branches. Null when the card never shows for this duration.
+     */
+    fun nextEpisodeThresholdPositionMs(
+        durationMs: Long,
+        skipIntervals: List<SkipInterval>,
+        thresholdMode: NextEpisodeThresholdMode,
+        thresholdPercent: Float,
+        thresholdMinutesBeforeEnd: Float,
+    ): Long? {
+        if (durationMs <= 0L) return null
+        fun shows(positionMs: Long) = shouldShowNextEpisodeCard(
+            positionMs = positionMs,
+            durationMs = durationMs,
+            skipIntervals = skipIntervals,
+            thresholdMode = thresholdMode,
+            thresholdPercent = thresholdPercent,
+            thresholdMinutesBeforeEnd = thresholdMinutesBeforeEnd,
+        )
+        if (!shows(durationMs)) return null
+        var low = 0L
+        var high = durationMs
+        while (low < high) {
+            val mid = low + (high - low) / 2
+            if (shows(mid)) high = mid else low = mid + 1
+        }
+        return low
+    }
+
+    /**
      * How far a movie is into its ending, for the More Like This card:
      * 0 = not yet, 1 = last 4 minutes, 2 = last 30 seconds, 3 = playback ended.
      * The card shows while the stage is above the one the user last dismissed it at, so a

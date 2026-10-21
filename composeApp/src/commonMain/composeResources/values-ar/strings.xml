@@ -391,12 +391,10 @@
     <string name="compose_player_resize_fill">ملء</string>
     <string name="compose_player_resize_fit">ملاءمة</string>
     <string name="compose_player_resize_zoom">تكبير</string>
-    <string name="compose_player_seek_back_10">رجوع 10 ثوانٍ</string>
     <string name="compose_player_seek_delta_backward">-%1$d ث</string>
     <string name="compose_player_seek_delta_forward">+%1$d ث</string>
     <string name="compose_player_seek_feedback_backward">-%1$d ث</string>
     <string name="compose_player_seek_feedback_forward">+%1$d ث</string>
-    <string name="compose_player_seek_forward_10">تقديم 10 ثوانٍ</string>
     <string name="compose_player_sources">المصادر</string>
     <string name="compose_player_style">النمط</string>
     <string name="compose_player_select_addon_subtitle_first">اختر ترجمة من إحدى الإضافات أولًا</string>

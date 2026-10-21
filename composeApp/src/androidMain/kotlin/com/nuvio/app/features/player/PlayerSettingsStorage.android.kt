@@ -32,6 +32,12 @@ actual object PlayerSettingsStorage {
     private const val holdToSpeedValueKey = "hold_to_speed_value"
     private const val touchGesturesEnabledKey = "touch_gestures_enabled"
     private const val swipeToSeekEnabledKey = "swipe_to_seek_enabled"
+    private const val brightnessSwipeEnabledKey = "brightness_swipe_enabled"
+    private const val volumeSwipeEnabledKey = "volume_swipe_enabled"
+    private const val doubleTapSeekEnabledKey = "double_tap_seek_enabled"
+    private const val swapGestureSidesKey = "swap_gesture_sides"
+    private const val seekForwardSecondsKey = "seek_forward_seconds"
+    private const val seekBackSecondsKey = "seek_back_seconds"
     private const val seekPreviewEnabledKey = "seek_preview_enabled"
     private const val movieRecommendationsEnabledKey = "movie_recommendations_enabled"
     private const val streamFailoverEnabledKey = "stream_failover_enabled"
@@ -361,6 +367,32 @@ actual object PlayerSettingsStorage {
             ?.apply()
     }
 
+    actual fun loadSeekForwardSeconds(): Int? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(seekForwardSecondsKey)
+            if (sharedPreferences.contains(key)) sharedPreferences.getInt(key, 10) else null
+        }
+
+    actual fun saveSeekForwardSeconds(seconds: Int) {
+        preferences
+            ?.edit()
+            ?.putInt(ProfileScopedKey.of(seekForwardSecondsKey), seconds)
+            ?.apply()
+    }
+
+    actual fun loadSeekBackSeconds(): Int? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(seekBackSecondsKey)
+            if (sharedPreferences.contains(key)) sharedPreferences.getInt(key, 10) else null
+        }
+
+    actual fun saveSeekBackSeconds(seconds: Int) {
+        preferences
+            ?.edit()
+            ?.putInt(ProfileScopedKey.of(seekBackSecondsKey), seconds)
+            ?.apply()
+    }
+
     actual fun loadSwipeToSeekEnabled(): Boolean? =
         preferences?.let { sharedPreferences ->
             val key = ProfileScopedKey.of(swipeToSeekEnabledKey)
@@ -375,6 +407,74 @@ actual object PlayerSettingsStorage {
         preferences
             ?.edit()
             ?.putBoolean(ProfileScopedKey.of(swipeToSeekEnabledKey), enabled)
+            ?.apply()
+    }
+
+    actual fun loadBrightnessSwipeEnabled(): Boolean? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(brightnessSwipeEnabledKey)
+            if (sharedPreferences.contains(key)) {
+                sharedPreferences.getBoolean(key, true)
+            } else {
+                null
+            }
+        }
+
+    actual fun saveBrightnessSwipeEnabled(enabled: Boolean) {
+        preferences
+            ?.edit()
+            ?.putBoolean(ProfileScopedKey.of(brightnessSwipeEnabledKey), enabled)
+            ?.apply()
+    }
+
+    actual fun loadVolumeSwipeEnabled(): Boolean? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(volumeSwipeEnabledKey)
+            if (sharedPreferences.contains(key)) {
+                sharedPreferences.getBoolean(key, true)
+            } else {
+                null
+            }
+        }
+
+    actual fun saveVolumeSwipeEnabled(enabled: Boolean) {
+        preferences
+            ?.edit()
+            ?.putBoolean(ProfileScopedKey.of(volumeSwipeEnabledKey), enabled)
+            ?.apply()
+    }
+
+    actual fun loadDoubleTapSeekEnabled(): Boolean? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(doubleTapSeekEnabledKey)
+            if (sharedPreferences.contains(key)) {
+                sharedPreferences.getBoolean(key, true)
+            } else {
+                null
+            }
+        }
+
+    actual fun saveDoubleTapSeekEnabled(enabled: Boolean) {
+        preferences
+            ?.edit()
+            ?.putBoolean(ProfileScopedKey.of(doubleTapSeekEnabledKey), enabled)
+            ?.apply()
+    }
+
+    actual fun loadSwapGestureSides(): Boolean? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(swapGestureSidesKey)
+            if (sharedPreferences.contains(key)) {
+                sharedPreferences.getBoolean(key, false)
+            } else {
+                null
+            }
+        }
+
+    actual fun saveSwapGestureSides(enabled: Boolean) {
+        preferences
+            ?.edit()
+            ?.putBoolean(ProfileScopedKey.of(swapGestureSidesKey), enabled)
             ?.apply()
     }
 
@@ -1626,6 +1726,12 @@ actual object PlayerSettingsStorage {
         loadHoldToSpeedValue()?.let { put(holdToSpeedValueKey, encodeSyncFloat(it)) }
         loadTouchGesturesEnabled()?.let { put(touchGesturesEnabledKey, encodeSyncBoolean(it)) }
         loadSwipeToSeekEnabled()?.let { put(swipeToSeekEnabledKey, encodeSyncBoolean(it)) }
+        loadBrightnessSwipeEnabled()?.let { put(brightnessSwipeEnabledKey, encodeSyncBoolean(it)) }
+        loadVolumeSwipeEnabled()?.let { put(volumeSwipeEnabledKey, encodeSyncBoolean(it)) }
+        loadDoubleTapSeekEnabled()?.let { put(doubleTapSeekEnabledKey, encodeSyncBoolean(it)) }
+        loadSwapGestureSides()?.let { put(swapGestureSidesKey, encodeSyncBoolean(it)) }
+        loadSeekForwardSeconds()?.let { put(seekForwardSecondsKey, encodeSyncInt(it)) }
+        loadSeekBackSeconds()?.let { put(seekBackSecondsKey, encodeSyncInt(it)) }
         loadMovieRecommendationsEnabled()?.let { put(movieRecommendationsEnabledKey, encodeSyncBoolean(it)) }
         loadStreamFailoverEnabled()?.let { put(streamFailoverEnabledKey, encodeSyncBoolean(it)) }
         loadAutoShowSubtitlesOnRewindEnabled()?.let { put(autoShowSubtitlesOnRewindEnabledKey, encodeSyncBoolean(it)) }
@@ -1716,6 +1822,12 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncFloat(holdToSpeedValueKey)?.let(::saveHoldToSpeedValue)
         payload.decodeSyncBoolean(touchGesturesEnabledKey)?.let(::saveTouchGesturesEnabled)
         payload.decodeSyncBoolean(swipeToSeekEnabledKey)?.let(::saveSwipeToSeekEnabled)
+        payload.decodeSyncBoolean(brightnessSwipeEnabledKey)?.let(::saveBrightnessSwipeEnabled)
+        payload.decodeSyncBoolean(volumeSwipeEnabledKey)?.let(::saveVolumeSwipeEnabled)
+        payload.decodeSyncBoolean(doubleTapSeekEnabledKey)?.let(::saveDoubleTapSeekEnabled)
+        payload.decodeSyncBoolean(swapGestureSidesKey)?.let(::saveSwapGestureSides)
+        payload.decodeSyncInt(seekForwardSecondsKey)?.let(::saveSeekForwardSeconds)
+        payload.decodeSyncInt(seekBackSecondsKey)?.let(::saveSeekBackSeconds)
         payload.decodeSyncBoolean(movieRecommendationsEnabledKey)?.let(::saveMovieRecommendationsEnabled)
         payload.decodeSyncBoolean(streamFailoverEnabledKey)?.let(::saveStreamFailoverEnabled)
         payload.decodeSyncBoolean(autoShowSubtitlesOnRewindEnabledKey)?.let(::saveAutoShowSubtitlesOnRewindEnabled)

@@ -197,6 +197,7 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
     func clearExternalSubtitle() { playerVC?.removeExternalSubtitles() }
     func clearExternalSubtitleAndSelect(trackId: Int32) { playerVC?.removeExternalSubtitlesAndSelect(Int(trackId)) }
     func setSubtitleDelayMs(delayMs: Int32) { playerVC?.setSubtitleDelayMs(Int(delayMs)) }
+    func setAudioDelayMs(delayMs: Int32) { playerVC?.setAudioDelayMs(Int(delayMs)) }
     func applySubtitleStyle(
         textColor: String,
         backgroundColor: String,
@@ -414,6 +415,7 @@ final class MPVPlayerViewController: UIViewController {
     private var lastResizeMode: Int?
     private var lastVideoZoom: Double?
     private var lastSubtitleDelayMs: Int?
+    private var lastAudioDelayMs: Int?
     private var lastVolume: Float?
     private var lastMuted: Bool?
     private var lastSelectedAudioTrackId: Int?
@@ -1289,6 +1291,7 @@ final class MPVPlayerViewController: UIViewController {
         if let mode = lastResizeMode { setResize(mode) }
         if let zoom = lastVideoZoom { setVideoZoom(zoom) }
         if let delay = lastSubtitleDelayMs { setSubtitleDelayMs(delay) }
+        if let delay = lastAudioDelayMs { setAudioDelayMs(delay) }
         if let style = lastSubtitleStyle {
             applySubtitleStyle(
                 textColor: style.textColor,
@@ -1551,6 +1554,13 @@ final class MPVPlayerViewController: UIViewController {
         lastSubtitleDelayMs = delayMs
         guard mpv != nil else { return }
         setDoubleProperty("sub-delay", Double(max(-60_000, min(60_000, delayMs))) / 1000.0)
+    }
+
+    /// Positive values make audio play later than video.
+    func setAudioDelayMs(_ delayMs: Int) {
+        lastAudioDelayMs = delayMs
+        guard mpv != nil else { return }
+        setDoubleProperty("audio-delay", Double(max(-60_000, min(60_000, delayMs))) / 1000.0)
     }
 
     func applySubtitleStyle(

@@ -64,6 +64,7 @@ import com.nuvio.app.features.player.IosTargetPrimaries
 import com.nuvio.app.features.player.IosTargetTransfer
 import com.nuvio.app.features.player.PlaybackMemoryInfo
 import com.nuvio.app.features.player.safeBufferLimitMb
+import com.nuvio.app.features.player.PlayerSeekStepChoicesSeconds
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.STREAM_AUTO_PLAY_TIMEOUT_VALUES
 import com.nuvio.app.features.player.SubtitleBackgroundColorSwatches
@@ -346,6 +347,8 @@ private fun PlaybackSettingsSection(
     var showLibmpvVideoOutputDialog by remember { mutableStateOf(false) }
     var showDecoderPriorityDialog by remember { mutableStateOf(false) }
     var showHoldToSpeedValueDialog by remember { mutableStateOf(false) }
+    var showSkipForwardDialog by remember { mutableStateOf(false) }
+    var showSkipBackDialog by remember { mutableStateOf(false) }
     var showIosAudioOutputDialog by remember { mutableStateOf(false) }
     var showIosHardwareDecoderDialog by remember { mutableStateOf(false) }
     var showIosTargetPrimariesDialog by remember { mutableStateOf(false) }
@@ -515,6 +518,28 @@ private fun PlaybackSettingsSection(
                     onCheckedChange = PlayerSettingsRepository::setSeekPreviewEnabled,
                 )
                 SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(
+                    title = stringResource(Res.string.settings_playback_skip_forward),
+                    description = stringResource(
+                        Res.string.settings_playback_skip_seconds_format,
+                        autoPlayPlayerSettings.seekForwardSeconds,
+                    ),
+                    isTablet = isTablet,
+                    onClick = { showSkipForwardDialog = true },
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(
+                    title = stringResource(Res.string.settings_playback_skip_back),
+                    description = stringResource(
+                        Res.string.settings_playback_skip_seconds_format,
+                        autoPlayPlayerSettings.seekBackSeconds,
+                    ),
+                    isTablet = isTablet,
+                    onClick = { showSkipBackDialog = true },
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                val touchGesturesControlsEnabled =
+                    touchGesturesEnabled && !autoPlayPlayerSettings.externalPlayerEnabled
                 SettingsSwitchRow(
                     title = stringResource(Res.string.settings_playback_touch_gestures),
                     description = stringResource(Res.string.settings_playback_touch_gestures_description),
@@ -535,14 +560,50 @@ private fun PlaybackSettingsSection(
                 }
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_brightness_swipe),
+                    description = stringResource(Res.string.settings_playback_brightness_swipe_description),
+                    checked = autoPlayPlayerSettings.brightnessSwipeEnabled,
+                    enabled = touchGesturesControlsEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setBrightnessSwipeEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_volume_swipe),
+                    description = stringResource(Res.string.settings_playback_volume_swipe_description),
+                    checked = autoPlayPlayerSettings.volumeSwipeEnabled,
+                    enabled = touchGesturesControlsEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setVolumeSwipeEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_double_tap_seek),
+                    description = stringResource(Res.string.settings_playback_double_tap_seek_description),
+                    checked = autoPlayPlayerSettings.doubleTapSeekEnabled,
+                    enabled = touchGesturesControlsEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setDoubleTapSeekEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_swap_gesture_sides),
+                    description = stringResource(Res.string.settings_playback_swap_gesture_sides_description),
+                    checked = autoPlayPlayerSettings.swapGestureSides,
+                    enabled = touchGesturesControlsEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setSwapGestureSides,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
                     title = stringResource(Res.string.settings_playback_hold_to_speed),
                     description = stringResource(Res.string.settings_playback_hold_to_speed_description),
                     checked = holdToSpeedEnabled,
-                    enabled = !autoPlayPlayerSettings.externalPlayerEnabled,
+                    enabled = touchGesturesControlsEnabled,
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setHoldToSpeedEnabled,
                 )
-                if (holdToSpeedEnabled && !autoPlayPlayerSettings.externalPlayerEnabled) {
+                if (holdToSpeedEnabled && touchGesturesControlsEnabled) {
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
                         title = stringResource(Res.string.settings_playback_hold_speed),
@@ -1816,6 +1877,34 @@ private fun PlaybackSettingsSection(
                 showLibmpvVideoOutputDialog = false
             },
             onDismiss = { showLibmpvVideoOutputDialog = false },
+        )
+    }
+
+    if (showSkipForwardDialog) {
+        IosEnumSelectionDialog(
+            title = stringResource(Res.string.settings_playback_skip_forward),
+            options = PlayerSeekStepChoicesSeconds,
+            selected = autoPlayPlayerSettings.seekForwardSeconds,
+            label = { stringResource(Res.string.settings_playback_skip_seconds_format, it) },
+            onSelect = {
+                PlayerSettingsRepository.setSeekForwardSeconds(it)
+                showSkipForwardDialog = false
+            },
+            onDismiss = { showSkipForwardDialog = false },
+        )
+    }
+
+    if (showSkipBackDialog) {
+        IosEnumSelectionDialog(
+            title = stringResource(Res.string.settings_playback_skip_back),
+            options = PlayerSeekStepChoicesSeconds,
+            selected = autoPlayPlayerSettings.seekBackSeconds,
+            label = { stringResource(Res.string.settings_playback_skip_seconds_format, it) },
+            onSelect = {
+                PlayerSettingsRepository.setSeekBackSeconds(it)
+                showSkipBackDialog = false
+            },
+            onDismiss = { showSkipBackDialog = false },
         )
     }
 

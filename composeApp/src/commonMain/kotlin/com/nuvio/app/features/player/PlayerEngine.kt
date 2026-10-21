@@ -54,6 +54,10 @@ interface PlayerEngineController {
      */
     fun setKeyboardShortcutHandler(handler: ((PlayerKeyboardShortcut) -> Unit)?) {}
     fun setSubtitleDelayMs(delayMs: Int) {}
+    /** Whether [setAudioDelayMs] has any effect on this engine. */
+    val supportsAudioDelay: Boolean get() = false
+    /** Shifts audio relative to video. Positive means audio plays later. */
+    fun setAudioDelayMs(delayMs: Int) {}
     fun configureIosVideoOutput(settings: PlayerSettingsUiState) {}
     fun updateNowPlayingMetadata(info: PlayerNowPlayingInfo) {}
     fun clearNowPlayingInfo() {}

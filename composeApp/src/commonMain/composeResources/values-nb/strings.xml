@@ -580,12 +580,10 @@
     <string name="compose_player_resize_fill">Fyll</string>
     <string name="compose_player_resize_fit">Tilpass</string>
     <string name="compose_player_resize_zoom">Zoom</string>
-    <string name="compose_player_seek_back_10">Spol 10 sekunder bakover</string>
     <string name="compose_player_seek_delta_backward">-%1$ds</string>
     <string name="compose_player_seek_delta_forward">+%1$ds</string>
     <string name="compose_player_seek_feedback_backward">-%1$ds</string>
     <string name="compose_player_seek_feedback_forward">+%1$ds</string>
-    <string name="compose_player_seek_forward_10">Spol 10 sekunder fremover</string>
     <string name="compose_player_select_addon_subtitle_first">Velg undertekst fra tillegg først</string>
     <string name="compose_player_show_elapsed_time">Vis medgått tid</string>
     <string name="compose_player_show_remaining_time">Vis gjenstående tid</string>
