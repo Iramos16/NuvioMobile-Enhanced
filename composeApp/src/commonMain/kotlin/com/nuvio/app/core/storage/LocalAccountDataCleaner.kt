@@ -48,6 +48,7 @@ import com.nuvio.app.features.watchprogress.ContinueWatchingEnrichmentCache
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import com.nuvio.app.features.watchprogress.WatchProgressSourceCoordinator
 import com.nuvio.app.features.watched.WatchedRepository
+import com.nuvio.app.features.watchhistory.WatchHistoryRepository
 
 internal object LocalAccountDataCleaner {
     suspend fun wipe(accountUserId: String? = null) {
@@ -87,6 +88,7 @@ internal object LocalAccountDataCleaner {
         ContinueWatchingEnrichmentCache.clearLocalState()
         WatchProgressRepository.clearLocalState()
         WatchedRepository.clearLocalState()
+        WatchHistoryRepository.clearLocalState()
         LibraryRepository.runAccountStorageWipe {
             wipePlatformStorage()
         }

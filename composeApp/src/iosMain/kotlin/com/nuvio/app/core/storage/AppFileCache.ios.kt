@@ -21,4 +21,8 @@ internal actual object AppFileCache {
         NSFileManager.defaultManager.createDirectoryAtPath(target.substringBeforeLast('/'), true, null, null)
         NSString.create(string = payload).writeToFile(target, true, NSUTF8StringEncoding, null)
     }
+
+    actual fun delete(path: String) {
+        NSFileManager.defaultManager.removeItemAtPath("$root/$path", null)
+    }
 }

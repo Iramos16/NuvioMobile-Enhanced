@@ -1,6 +1,7 @@
 package com.nuvio.app.features.watchhistory
 
 import co.touchlab.kermit.Logger
+import com.nuvio.app.core.storage.AppFileCache
 import com.nuvio.app.core.time.EpisodeReleaseDatePlatform
 import com.nuvio.app.core.tracking.ensureTrackingProvidersRegistered
 import com.nuvio.app.features.anilist.AniListTracker
@@ -83,10 +84,12 @@ internal interface WatchHistoryPayloadStore {
 /** An automatic refresh is skipped while every connected source was pulled more recently than this. */
 internal const val WATCH_HISTORY_STALE_AFTER_MS = 5L * 60L * 1000L
 
-private object PlatformWatchHistoryPayloadStore : WatchHistoryPayloadStore {
-    override fun load(profileId: Int): String? = WatchHistoryStorage.loadPayload(profileId)
-    override fun save(profileId: Int, payload: String) = WatchHistoryStorage.savePayload(profileId, payload)
-    override fun delete(profileId: Int) = Unit
+/** One file per profile: histories can be large, so they stay out of preferences storage. */
+private object FileWatchHistoryPayloadStore : WatchHistoryPayloadStore {
+    private fun path(profileId: Int) = "watch_history/profile_$profileId.json"
+    override fun load(profileId: Int): String? = AppFileCache.read(path(profileId))
+    override fun save(profileId: Int, payload: String) = AppFileCache.write(path(profileId), payload)
+    override fun delete(profileId: Int) = AppFileCache.delete(path(profileId))
 }
 
 /** Reads each connected tracker's watched projection plus local Nuvio items. Never writes. */
@@ -276,11 +279,11 @@ internal class WatchHistoryController(
 object WatchHistoryRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private val controller by lazy {
+    private val controllerDelegate = lazy {
         TrackingSettingsRepository.ensureLoaded()
         WatchHistoryController(
             gateway = TrackingWatchHistorySourceGateway,
-            store = PlatformWatchHistoryPayloadStore,
+            store = FileWatchHistoryPayloadStore,
             policy = TrackingSettingsRepository.uiState.map { it.watchHistoryMergePolicy },
             profileIds = ProfileRepository.state.map { ProfileRepository.activeProfileId },
             timeZone = { TimeZone.currentSystemDefault() },
@@ -288,6 +291,7 @@ object WatchHistoryRepository {
             nowEpochMs = { EpisodeReleaseDatePlatform.nowEpochMs() },
         )
     }
+    private val controller by controllerDelegate
 
     val uiState: StateFlow<WatchHistoryUiState>
         get() = controller.uiState
@@ -302,7 +306,12 @@ object WatchHistoryRepository {
         scope.launch { controller.refresh(force) }
     }
 
+    /** Removes every profile's history; called when the account's local data is wiped. */
     fun clearLocalState() {
-        controller.clear(1..MAX_PROFILES)
+        if (controllerDelegate.isInitialized()) {
+            controller.clear(1..MAX_PROFILES)
+        } else {
+            (1..MAX_PROFILES).forEach(FileWatchHistoryPayloadStore::delete)
+        }
     }
 }
