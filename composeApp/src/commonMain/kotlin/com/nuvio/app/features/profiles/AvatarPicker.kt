@@ -17,6 +17,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -76,6 +82,13 @@ private fun AvatarChoiceItem(
                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                 shape = CircleShape,
             )
+            // Label the tile itself: avatars without an image would otherwise have no label.
+            .clearAndSetSemantics {
+                contentDescription = avatar.displayName
+                selected = isSelected
+                role = Role.Button
+                onClick { onClick(); true }
+            }
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
