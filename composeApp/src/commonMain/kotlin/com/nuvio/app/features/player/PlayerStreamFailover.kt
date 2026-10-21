@@ -9,6 +9,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.TimeSource
 import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.player_failover_finding_next
 import nuvio.composeapp.generated.resources.player_failover_retrying
 import nuvio.composeapp.generated.resources.player_failover_trying_next
 import org.jetbrains.compose.resources.getString
@@ -18,15 +19,22 @@ internal const val FAILOVER_SOURCE_WAIT_MS = 15_000L
 internal const val FAILOVER_SOURCE_POLL_MS = 500L
 internal const val FAILOVER_HEALTHY_PLAYBACK_MS = 30_000L
 
+/** Position jumps larger than this between snapshots are seeks, not playback. */
+private const val FAILOVER_MAX_PROGRESS_STEP_MS = 5_000L
+
 /**
  * Failover progress for the current player session. [failedUrls] lasts until the player closes;
- * the retry flag and alternative budget reset once a source plays for [FAILOVER_HEALTHY_PLAYBACK_MS].
+ * the retry flag and alternative budget reset once a source has played for
+ * [FAILOVER_HEALTHY_PLAYBACK_MS], or when another video starts.
  */
 internal data class StreamFailoverState(
     val retriedUrl: String? = null,
     val alternativesUsed: Int = 0,
     val failedUrls: Set<String> = emptySet(),
-    val progressBaselineMs: Long? = null,
+    val videoId: String? = null,
+    /** Last reported position while waiting for healthy playback; null when nothing is pending. */
+    val lastProgressPositionMs: Long? = null,
+    val playedMs: Long = 0L,
 )
 
 internal sealed interface StreamFailoverAction {
@@ -65,14 +73,28 @@ internal fun selectFailoverCandidate(
         }
 }
 
+/** Counts time actually played since the last failover step; seeks don't count. */
 internal fun StreamFailoverState.afterProgress(positionMs: Long): StreamFailoverState {
-    val baseline = progressBaselineMs ?: return this
-    return if (positionMs - baseline >= FAILOVER_HEALTHY_PLAYBACK_MS) {
-        StreamFailoverState(failedUrls = failedUrls)
+    val lastPositionMs = lastProgressPositionMs ?: return this
+    val stepMs = positionMs - lastPositionMs
+    val played = playedMs + if (stepMs in 1..FAILOVER_MAX_PROGRESS_STEP_MS) stepMs else 0L
+    return if (played >= FAILOVER_HEALTHY_PLAYBACK_MS) {
+        StreamFailoverState(failedUrls = failedUrls, videoId = videoId)
     } else {
-        this
+        copy(lastProgressPositionMs = positionMs, playedMs = played)
     }
 }
+
+/** A different video gets a fresh budget; links that already failed stay excluded. */
+internal fun StreamFailoverState.forVideo(videoId: String?): StreamFailoverState =
+    if (videoId == this.videoId) this else StreamFailoverState(failedUrls = failedUrls, videoId = videoId)
+
+/** Source loading left over from a recovered failure is stopped unless the Sources panel or a failover uses it. */
+internal fun shouldStopLeftoverSourceLoading(
+    isLoading: Boolean,
+    sourcesPanelOpen: Boolean,
+    failoverRunning: Boolean,
+): Boolean = isLoading && !sourcesPanelOpen && !failoverRunning
 
 /**
  * Handles a playback error by retrying the current source once, then moving to the next stream in
@@ -82,13 +104,15 @@ internal fun PlayerScreenRuntime.tryStreamFailoverAfterError(message: String): B
     if (!playerSettingsUiState.streamFailoverEnabled) return false
     if (streamFailoverJob?.isActive == true) return true
     val failedUrl = activeSourceUrl.takeIf { it.isNotBlank() } ?: return false
+    streamFailoverState = streamFailoverState.forVideo(activeVideoId)
 
     return when (decideStreamFailover(streamFailoverState, failedUrl, playerController != null)) {
         StreamFailoverAction.Retry -> {
             val resumePositionMs = failoverResumePositionMs()
             streamFailoverState = streamFailoverState.copy(
                 retriedUrl = failedUrl,
-                progressBaselineMs = resumePositionMs,
+                lastProgressPositionMs = resumePositionMs,
+                playedMs = 0L,
             )
             // libmpv reloads the file from the start on retry, so seek back once it is ready.
             activeInitialPositionMs = resumePositionMs
@@ -112,8 +136,21 @@ internal fun PlayerScreenRuntime.tryStreamFailoverAfterError(message: String): B
 }
 
 internal fun PlayerScreenRuntime.noteStreamFailoverProgress(positionMs: Long) {
-    val updated = streamFailoverState.afterProgress(positionMs)
-    if (updated != streamFailoverState) streamFailoverState = updated
+    val current = streamFailoverState
+    val updated = current.afterProgress(positionMs)
+    if (updated == current) return
+    streamFailoverState = updated
+    val recovered = current.lastProgressPositionMs != null && updated.lastProgressPositionMs == null
+    if (
+        recovered &&
+        shouldStopLeftoverSourceLoading(
+            isLoading = PlayerStreamsRepository.sourceState.value.isAnyLoading,
+            sourcesPanelOpen = showSourcesPanel,
+            failoverRunning = streamFailoverJob?.isActive == true,
+        )
+    ) {
+        PlayerStreamsRepository.stopSourcesLoading()
+    }
 }
 
 /** Where the next source should start: the live position, or the failed source's start if it never played. */
@@ -163,6 +200,7 @@ internal fun shouldStopFailoverSourceLoading(state: StreamsUiState): Boolean = s
 private fun PlayerScreenRuntime.startFailoverToNextStream(message: String) {
     val context = captureFailoverContext(message)
     errorMessage = null
+    scope.launch { NuvioToastController.show(getString(Res.string.player_failover_finding_next)) }
     streamFailoverJob = scope.launch {
         try {
             loadFailoverSources()
@@ -204,7 +242,8 @@ internal fun PlayerScreenRuntime.finishFailover(context: FailoverContext, candid
     streamFailoverState = streamFailoverState.copy(
         retriedUrl = null,
         alternativesUsed = context.attempt,
-        progressBaselineMs = context.resumePositionMs,
+        lastProgressPositionMs = context.resumePositionMs,
+        playedMs = 0L,
     )
     InAppLogger.info(
         "Player/Failover",

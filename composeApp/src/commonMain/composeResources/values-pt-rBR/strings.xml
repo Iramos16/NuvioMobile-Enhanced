@@ -1350,6 +1350,7 @@
     <string name="settings_playback_stream_failover">Troca automática de stream</string>
     <string name="settings_playback_stream_failover_description">Se um stream falhar, tenta de novo uma vez e depois tenta os próximos streams da lista.</string>
     <string name="player_failover_retrying">A reprodução falhou — tentando de novo…</string>
+    <string name="player_failover_finding_next">O stream falhou — procurando outro…</string>
     <string name="player_failover_trying_next">Tentando o próximo stream (%1$d/%2$d): %3$s</string>
     <string name="settings_playback_reuse_last_link">Reutilizar último link</string>
     <string name="settings_playback_reuse_last_link_description">Reproduzir automaticamente sua última stream funcional para este mesmo filme/episódio enquanto o cache estiver válido</string>
