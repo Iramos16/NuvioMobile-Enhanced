@@ -390,6 +390,7 @@ private fun PlayerScreenRuntime.switchToPreparedLiveChannel(channel: LiveTvChann
 internal fun PlayerScreenRuntime.switchToSource(
     stream: StreamItem,
     saveForReuse: Boolean = true,
+    resumePositionMs: Long? = null,
 ) {
     if (prepareServerForPlayer(stream) { switchToSource(it) }) return
     // The resolved URL expires after a few hours, so it isn't kept for reuse.
@@ -430,7 +431,7 @@ internal fun PlayerScreenRuntime.switchToSource(
         )
         return
     }
-    val currentPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
+    val currentPositionMs = resumePositionMs ?: playbackSnapshot.positionMs.coerceAtLeast(0L)
     flushWatchProgress()
     stopActiveP2pStream()
     val currentVideoId = activeVideoId

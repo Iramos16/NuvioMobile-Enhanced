@@ -11,6 +11,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.TimeZone
@@ -44,6 +45,9 @@ class WatchHistoryRepositoryTest {
         override fun save(profileId: Int, payload: String) {
             payloads[profileId] = payload
         }
+        override fun delete(profileId: Int) {
+            payloads.remove(profileId)
+        }
     }
 
     private fun cached(vararg slices: Pair<WatchHistorySourceId, List<WatchedItem>>): String =
@@ -59,6 +63,7 @@ class WatchHistoryRepositoryTest {
         store: FakeStore,
         policy: MutableStateFlow<WatchHistoryMergePolicy> = MutableStateFlow(WatchHistoryMergePolicy.MOST_RECENT),
         profile: MutableStateFlow<Int> = MutableStateFlow(1),
+        now: Long = 5_000L,
     ) = WatchHistoryController(
         gateway = gateway,
         store = store,
@@ -66,7 +71,7 @@ class WatchHistoryRepositoryTest {
         profileIds = profile,
         timeZone = { TimeZone.UTC },
         scope = scope,
-        nowEpochMs = { 5_000L },
+        nowEpochMs = { now },
     ).also { it.start() }
 
     private fun WatchHistoryController.awaitState(predicate: (WatchHistoryUiState) -> Boolean): WatchHistoryUiState =
@@ -225,6 +230,9 @@ class WatchHistoryRepositoryTest {
         override fun save(profileId: Int, payload: String) {
             saved = payload
         }
+        override fun delete(profileId: Int) {
+            saved = null
+        }
     }
 
     @Test
@@ -248,5 +256,159 @@ class WatchHistoryRepositoryTest {
             withTimeout(5_000) { while (!store.firstLoadDone) kotlinx.coroutines.yield() }
         }
         assertEquals(listOf("fresh"), controller.awaitState { it.ids() == listOf("fresh") }.ids())
+    }
+
+    @Test
+    fun refreshWhileRefreshing_runsQueuedFollowUpForNewProfile() {
+        val profile = MutableStateFlow(1)
+        val firstPullStarted = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val releaseFirstPull = kotlinx.coroutines.CompletableDeferred<Unit>()
+        var calls = 0
+        val gateway = object : WatchHistorySourceGateway {
+            override fun connectedSources(): Flow<Set<WatchHistorySourceId>> = MutableStateFlow(setOf(NUVIO))
+            override suspend fun pull(id: WatchHistorySourceId, profileId: Int): List<WatchedItem> {
+                calls += 1
+                if (calls == 1) {
+                    firstPullStarted.complete(Unit)
+                    releaseFirstPull.await()
+                }
+                return listOf(item("profile-$profileId", 100))
+            }
+        }
+        val store = FakeStore()
+        val controller = WatchHistoryController(
+            gateway = gateway,
+            store = store,
+            policy = MutableStateFlow(WatchHistoryMergePolicy.MOST_RECENT),
+            profileIds = profile,
+            timeZone = { TimeZone.UTC },
+            scope = scope,
+            nowEpochMs = { 5_000L },
+        ).also { it.start() }
+        runBlocking {
+            val first = scope.launch { controller.refresh() }
+            firstPullStarted.await()
+            profile.value = 2
+            controller.refresh()
+            releaseFirstPull.complete(Unit)
+            first.join()
+        }
+        assertEquals(
+            listOf("profile-2"),
+            decodeStoredWatchHistory(store.payloads[2]).sources["NUVIO"].orEmpty().map { it.id },
+        )
+    }
+
+    @Test
+    fun accountChangedCancellation_failsOnlyThatSource() {
+        val gateway = FakeGateway(setOf(NUVIO, SIMKL)).apply {
+            results[NUVIO] = { listOf(item("n", 100)) }
+            results[SIMKL] = { throw kotlinx.coroutines.CancellationException("account changed") }
+        }
+        val store = FakeStore()
+        val controller = controller(gateway, store)
+        runBlocking { controller.refresh() }
+        val state = controller.awaitState { it.ids() == listOf("n") && it.failedSources.isNotEmpty() }
+        assertEquals(setOf(SIMKL), state.failedSources)
+    }
+
+    @Test
+    fun refreshIfStale_skipsWhenEveryConnectedSourceIsFresh() {
+        var pulls = 0
+        val gateway = FakeGateway(setOf(NUVIO, TRAKT)).apply {
+            results[NUVIO] = { pulls += 1; emptyList() }
+            results[TRAKT] = { pulls += 1; emptyList() }
+        }
+        val store = FakeStore().apply { payloads[1] = cached(NUVIO to emptyList(), TRAKT to emptyList()) }
+        val controller = controller(gateway, store, now = 1L + WATCH_HISTORY_STALE_AFTER_MS - 1)
+        runBlocking { controller.refresh(force = false) }
+        assertEquals(0, pulls)
+    }
+
+    @Test
+    fun refreshIfStale_runsWhenAConnectedSourceIsOld() {
+        var pulls = 0
+        val gateway = FakeGateway(setOf(NUVIO, TRAKT)).apply {
+            results[NUVIO] = { pulls += 1; emptyList() }
+            results[TRAKT] = { pulls += 1; emptyList() }
+        }
+        val store = FakeStore().apply { payloads[1] = cached(NUVIO to emptyList(), TRAKT to emptyList()) }
+        val controller = controller(gateway, store, now = 1L + WATCH_HISTORY_STALE_AFTER_MS + 1)
+        runBlocking { controller.refresh(force = false) }
+        assertEquals(2, pulls)
+    }
+
+    @Test
+    fun refreshIfStale_runsWhenAConnectedSourceWasNeverPulled() {
+        var pulls = 0
+        val gateway = FakeGateway(setOf(NUVIO, TRAKT)).apply {
+            results[NUVIO] = { pulls += 1; emptyList() }
+            results[TRAKT] = { pulls += 1; emptyList() }
+        }
+        val store = FakeStore().apply { payloads[1] = cached(NUVIO to emptyList()) }
+        val controller = controller(gateway, store, now = 2L)
+        runBlocking { controller.refresh(force = false) }
+        assertEquals(2, pulls)
+    }
+
+    @Test
+    fun lastUpdated_isOldestConnectedSource() {
+        val store = FakeStore().apply {
+            payloads[1] = encodeStoredWatchHistory(
+                StoredWatchHistory(
+                    sources = mapOf("NUVIO" to emptyList(), "TRAKT" to emptyList(), "SIMKL" to emptyList()),
+                    lastUpdatedEpochMs = mapOf("NUVIO" to 300L, "TRAKT" to 100L, "SIMKL" to 50L),
+                ),
+            )
+        }
+        val controller = controller(FakeGateway(setOf(NUVIO, TRAKT)), store)
+        assertEquals(100L, controller.awaitState { it.isLoaded }.lastUpdatedEpochMs)
+    }
+
+    @Test
+    fun clear_deletesEveryProfilesHistoryAndResetsState() {
+        val store = FakeStore().apply {
+            payloads[1] = cached(NUVIO to listOf(item("one", 100)))
+            payloads[2] = cached(NUVIO to listOf(item("two", 100)))
+        }
+        val controller = controller(FakeGateway(setOf(NUVIO)), store)
+        controller.awaitState { it.ids() == listOf("one") }
+        controller.clear(profileIds = 1..2)
+        assertTrue(store.payloads.isEmpty())
+        assertTrue(controller.awaitState { it.sections.isEmpty() }.sections.isEmpty())
+    }
+
+    @Test
+    fun lateStartupProfileLoad_keepsFailuresFromEarlierRefresh() {
+        val gateway = FakeGateway(setOf(NUVIO, SIMKL)).apply {
+            results[NUVIO] = { listOf(item("fresh", 100)) }
+            results[SIMKL] = { error("offline") }
+        }
+        val store = FakeStore()
+        var collections = 0
+        val startupGate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        // The first collector (start()'s profile observer) only sees the profile after refresh ran.
+        val profileIds = kotlinx.coroutines.flow.flow {
+            collections += 1
+            if (collections == 1) startupGate.await()
+            emit(1)
+        }
+        val controller = WatchHistoryController(
+            gateway = gateway,
+            store = store,
+            policy = MutableStateFlow(WatchHistoryMergePolicy.MOST_RECENT),
+            profileIds = profileIds,
+            timeZone = { TimeZone.UTC },
+            scope = scope,
+            nowEpochMs = { 5_000L },
+        )
+        controller.start()
+        runBlocking {
+            withTimeout(5_000) { while (collections < 1) kotlinx.coroutines.yield() }
+            controller.refresh()
+            startupGate.complete(Unit)
+            kotlinx.coroutines.delay(200)
+        }
+        assertEquals(setOf(SIMKL), controller.awaitState { it.isLoaded }.failedSources)
     }
 }

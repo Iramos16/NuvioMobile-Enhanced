@@ -3,6 +3,7 @@ package com.nuvio.app.features.mdblist
 import com.nuvio.app.features.watched.WatchedItem
 import com.nuvio.app.features.watched.watchedItemKeys
 import com.nuvio.app.features.watchprogress.WatchProgressEntry
+import com.nuvio.app.features.watching.domain.WatchedThreshold
 
 internal class MdbListProgressProjection(snapshot: MdbListSyncSnapshot) {
     private val mediaIndex = MdbListMediaIndex(snapshot)
@@ -39,7 +40,7 @@ internal class MdbListProgressProjection(snapshot: MdbListSyncSnapshot) {
         .flatMap { aliases -> aliases.map { it to aliases } }.toMap()
     val progress = snapshot.playback.filter { session ->
         val watched = historyByKey["${session.type}:${session.media.ids.key}:${session.season ?: -1}:${session.episode ?: -1}"]
-        session.progress < COMPLETION_PERCENT && !isHidden(session.media.ids.contentId, session.season) &&
+        !WatchedThreshold.isReached(session.progress) && !isHidden(session.media.ids.contentId, session.season) &&
             (watched == null || mdbListTimestamp(session.updatedAt) > mdbListTimestamp(watched.watchedAt))
     }.map { session ->
         entry(session.type, session.media, session.season, session.episode, session.episodeTitle,
@@ -91,7 +92,7 @@ internal class MdbListProgressProjection(snapshot: MdbListSyncSnapshot) {
             durationMs = duration,
             lastUpdatedEpochMs = mdbListTimestamp(timestamp),
             progressPercent = percent,
-            isCompleted = percent >= COMPLETION_PERCENT,
+            isCompleted = WatchedThreshold.isReached(percent),
             source = source,
             trackingProviderId = "mdblist",
             trackingProviderItemId = media.ids.mdblist?.let { "mdblist:$it" },
@@ -104,7 +105,8 @@ internal class MdbListProgressProjection(snapshot: MdbListSyncSnapshot) {
         com.nuvio.app.features.watchprogress.buildPlaybackVideoId(media.ids.contentId, season, episode)
 
     companion object {
-        const val COMPLETION_PERCENT = 80f
+        /** MDBList marks an item watched on its side once a stop scrobble reaches this. */
+        const val PROVIDER_WATCHED_PERCENT = 80f
         val Empty = MdbListProgressProjection(MdbListSyncSnapshot(0))
     }
 }

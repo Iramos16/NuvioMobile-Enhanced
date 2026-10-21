@@ -37,6 +37,7 @@ actual object PlayerSettingsStorage {
     private const val seekBackSecondsKey = "seek_back_seconds"
     private const val seekPreviewEnabledKey = "seek_preview_enabled"
     private const val movieRecommendationsEnabledKey = "movie_recommendations_enabled"
+    private const val streamFailoverEnabledKey = "stream_failover_enabled"
     private const val autoShowSubtitlesOnRewindEnabledKey = "auto_show_subtitles_on_rewind_enabled"
     private const val autoShowSubtitlesOnMuteEnabledKey = "auto_show_subtitles_on_mute_enabled"
     private const val externalPlayerEnabledKey = "external_player_enabled"
@@ -89,6 +90,7 @@ actual object PlayerSettingsStorage {
     private const val nextEpisodeThresholdModeKey = "next_episode_threshold_mode"
     private const val nextEpisodeThresholdPercentKey = "next_episode_threshold_percent_v2"
     private const val nextEpisodeThresholdMinutesBeforeEndKey = "next_episode_threshold_minutes_before_end_v2"
+    private const val watchedThresholdPercentKey = "watched_threshold_percent"
     private const val preloadNextEpisodeSourcesKey = "preload_next_episode_sources"
     private const val miniPlayerEnabledKey = "mini_player_enabled"
     private const val privateViewingEnabledKey = "private_viewing_enabled"
@@ -140,6 +142,7 @@ actual object PlayerSettingsStorage {
         subtitleShowOnlyPreferredLanguagesKey,
         streamReuseLastLinkEnabledKey,
         streamReuseLastLinkCacheHoursKey,
+        streamFailoverEnabledKey,
         androidPlaybackEngineKey,
         androidLibmpvVideoOutputKey,
         androidLibmpvHardwareDecodingEnabledKey,
@@ -166,6 +169,7 @@ actual object PlayerSettingsStorage {
         nextEpisodeThresholdModeKey,
         nextEpisodeThresholdPercentKey,
         nextEpisodeThresholdMinutesBeforeEndKey,
+        watchedThresholdPercentKey,
         preloadNextEpisodeSourcesKey,
         miniPlayerEnabledKey,
         useLibassKey,
@@ -386,6 +390,12 @@ actual object PlayerSettingsStorage {
 
     actual fun saveMovieRecommendationsEnabled(enabled: Boolean) {
         saveBoolean(movieRecommendationsEnabledKey, enabled)
+    }
+
+    actual fun loadStreamFailoverEnabled(): Boolean? = loadBoolean(streamFailoverEnabledKey)
+
+    actual fun saveStreamFailoverEnabled(enabled: Boolean) {
+        saveBoolean(streamFailoverEnabledKey, enabled)
     }
 
     actual fun loadAutoShowSubtitlesOnRewindEnabled(): Boolean? = loadBoolean(autoShowSubtitlesOnRewindEnabledKey)
@@ -981,6 +991,12 @@ actual object PlayerSettingsStorage {
         NSUserDefaults.standardUserDefaults.setFloat(percent, forKey = ProfileScopedKey.of(nextEpisodeThresholdPercentKey))
     }
 
+    actual fun loadWatchedThresholdPercent(): Int? = loadInt(watchedThresholdPercentKey)
+
+    actual fun saveWatchedThresholdPercent(percent: Int) {
+        saveInt(watchedThresholdPercentKey, percent)
+    }
+
     actual fun loadNextEpisodeThresholdMinutesBeforeEnd(): Float? {
         val defaults = NSUserDefaults.standardUserDefaults
         val key = ProfileScopedKey.of(nextEpisodeThresholdMinutesBeforeEndKey)
@@ -1186,6 +1202,7 @@ actual object PlayerSettingsStorage {
         loadSeekForwardSeconds()?.let { put(seekForwardSecondsKey, encodeSyncInt(it)) }
         loadSeekBackSeconds()?.let { put(seekBackSecondsKey, encodeSyncInt(it)) }
         loadMovieRecommendationsEnabled()?.let { put(movieRecommendationsEnabledKey, encodeSyncBoolean(it)) }
+        loadStreamFailoverEnabled()?.let { put(streamFailoverEnabledKey, encodeSyncBoolean(it)) }
         loadAutoShowSubtitlesOnRewindEnabled()?.let { put(autoShowSubtitlesOnRewindEnabledKey, encodeSyncBoolean(it)) }
         loadAutoShowSubtitlesOnMuteEnabled()?.let { put(autoShowSubtitlesOnMuteEnabledKey, encodeSyncBoolean(it)) }
         loadExternalPlayerEnabled()?.let { put(externalPlayerEnabledKey, encodeSyncBoolean(it)) }
@@ -1236,6 +1253,7 @@ actual object PlayerSettingsStorage {
         loadNextEpisodeThresholdMode()?.let { put(nextEpisodeThresholdModeKey, encodeSyncString(it)) }
         loadNextEpisodeThresholdPercent()?.let { put(nextEpisodeThresholdPercentKey, encodeSyncFloat(it)) }
         loadNextEpisodeThresholdMinutesBeforeEnd()?.let { put(nextEpisodeThresholdMinutesBeforeEndKey, encodeSyncFloat(it)) }
+        loadWatchedThresholdPercent()?.let { put(watchedThresholdPercentKey, encodeSyncInt(it)) }
         loadPreloadNextEpisodeSources()?.let { put(preloadNextEpisodeSourcesKey, encodeSyncBoolean(it)) }
         loadMiniPlayerEnabled()?.let { put(miniPlayerEnabledKey, encodeSyncBoolean(it)) }
         loadUseLibass()?.let { put(useLibassKey, encodeSyncBoolean(it)) }
@@ -1279,6 +1297,7 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncInt(seekForwardSecondsKey)?.let(::saveSeekForwardSeconds)
         payload.decodeSyncInt(seekBackSecondsKey)?.let(::saveSeekBackSeconds)
         payload.decodeSyncBoolean(movieRecommendationsEnabledKey)?.let(::saveMovieRecommendationsEnabled)
+        payload.decodeSyncBoolean(streamFailoverEnabledKey)?.let(::saveStreamFailoverEnabled)
         payload.decodeSyncBoolean(autoShowSubtitlesOnRewindEnabledKey)?.let(::saveAutoShowSubtitlesOnRewindEnabled)
         payload.decodeSyncBoolean(autoShowSubtitlesOnMuteEnabledKey)?.let(::saveAutoShowSubtitlesOnMuteEnabled)
         payload.decodeSyncBoolean(externalPlayerEnabledKey)?.let(::saveExternalPlayerEnabled)
@@ -1329,6 +1348,7 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncString(nextEpisodeThresholdModeKey)?.let(::saveNextEpisodeThresholdMode)
         payload.decodeSyncFloat(nextEpisodeThresholdPercentKey)?.let(::saveNextEpisodeThresholdPercent)
         payload.decodeSyncFloat(nextEpisodeThresholdMinutesBeforeEndKey)?.let(::saveNextEpisodeThresholdMinutesBeforeEnd)
+        payload.decodeSyncInt(watchedThresholdPercentKey)?.let(::saveWatchedThresholdPercent)
         payload.decodeSyncBoolean(preloadNextEpisodeSourcesKey)?.let(::savePreloadNextEpisodeSources)
         payload.decodeSyncBoolean(miniPlayerEnabledKey)?.let(::saveMiniPlayerEnabled)
         payload.decodeSyncBoolean(useLibassKey)?.let(::saveUseLibass)

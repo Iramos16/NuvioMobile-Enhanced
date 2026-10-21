@@ -85,6 +85,7 @@ import com.nuvio.app.features.plugins.PluginsUiState
 import com.nuvio.app.features.plugins.PluginRepository
 import com.nuvio.app.features.streams.StreamAutoPlayMode
 import com.nuvio.app.features.streams.StreamAutoPlaySource
+import com.nuvio.app.features.watching.domain.WatchedThreshold
 import com.nuvio.app.isIos
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
@@ -457,6 +458,11 @@ private fun PlaybackSettingsSection(
                     checked = autoPlayPlayerSettings.privateViewingEnabled,
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setPrivateViewingEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                WatchedThresholdSliderRow(
+                    percent = autoPlayPlayerSettings.watchedThresholdPercent,
+                    isTablet = isTablet,
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 // Player preference picker: Internal / External
@@ -934,6 +940,14 @@ private fun PlaybackSettingsSection(
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_stream_failover),
+                    description = stringResource(Res.string.settings_playback_stream_failover_description),
+                    checked = autoPlayPlayerSettings.streamFailoverEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setStreamFailoverEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
                     title = stringResource(Res.string.settings_playback_reuse_last_link),
                     description = stringResource(Res.string.settings_playback_reuse_last_link_description),
@@ -3096,6 +3110,65 @@ private fun IntroDbApiKeyDialog(
                 loading = isVerifying,
             )
         }
+    }
+}
+
+@Composable
+private fun WatchedThresholdSliderRow(
+    percent: Int,
+    isTablet: Boolean,
+) {
+    val hapticFeedback = LocalHapticFeedback.current
+    var sliderValue by remember(percent) { mutableFloatStateOf(percent.toFloat()) }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = if (isTablet) 18.dp else 16.dp, vertical = 10.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                Text(
+                    text = stringResource(Res.string.settings_playback_watched_threshold),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = stringResource(Res.string.settings_playback_watched_threshold_description),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            ValueBox(
+                text = stringResource(
+                    Res.string.settings_playback_threshold_percentage_value,
+                    sliderValue.roundToInt().toString(),
+                ),
+                modifier = Modifier.wrapContentWidth(),
+            )
+        }
+        Slider(
+            value = sliderValue,
+            onValueChange = {
+                val snapped = it.roundToInt().toFloat()
+                if (snapped != sliderValue) {
+                    sliderValue = snapped
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }
+            },
+            onValueChangeFinished = {
+                PlayerSettingsRepository.setWatchedThresholdPercent(sliderValue.roundToInt())
+            },
+            valueRange = WatchedThreshold.MIN_PERCENT.toFloat()..WatchedThreshold.MAX_PERCENT.toFloat(),
+            steps = WatchedThreshold.MAX_PERCENT - WatchedThreshold.MIN_PERCENT - 1,
+            colors = SliderDefaults.colors(
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = MaterialTheme.colorScheme.primary,
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

@@ -695,6 +695,11 @@ internal fun settingsSearchEntries(
         icon = Icons.Rounded.PlayArrow,
         rows = listOf(
             PlaybackSearchRow(
+                "stream-failover",
+                stringResource(Res.string.settings_playback_stream_failover),
+                stringResource(Res.string.settings_playback_stream_failover_description),
+            ),
+            PlaybackSearchRow(
                 "reuse-last-link",
                 stringResource(Res.string.settings_playback_reuse_last_link),
                 stringResource(Res.string.settings_playback_reuse_last_link_description),

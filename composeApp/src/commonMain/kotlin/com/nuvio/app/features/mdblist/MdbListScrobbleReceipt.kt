@@ -12,7 +12,7 @@ internal data class MdbListScrobbleReceipt(
     val playbackId: Long?
 ) {
     val isWatched: Boolean
-        get() = action != TrackingScrobbleAction.START && progress >= MdbListProgressProjection.COMPLETION_PERCENT
+        get() = action != TrackingScrobbleAction.START && progress >= MdbListProgressProjection.PROVIDER_WATCHED_PERCENT
 }
 
 internal fun decodeMdbListScrobbleReceipt(

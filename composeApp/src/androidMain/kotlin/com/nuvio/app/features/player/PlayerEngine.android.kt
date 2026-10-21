@@ -1569,16 +1569,22 @@ private fun LibmpvPlayerSurface(
                     MPV.mpvEvent.MPV_EVENT_END_FILE -> {
                         coroutineScope.launch(Dispatchers.Main.immediate) {
                             val snapshot = view.snapshot()
+                            val reason = data.nodeString("reason")
                             Log.w(
                                 PLAYER_DIAGNOSTIC_TAG,
-                                "mpv_event=END_FILE attempt=${playbackDiagnostics.attempt} " +
+                                "mpv_event=END_FILE reason=${reason.orEmpty()} attempt=${playbackDiagnostics.attempt} " +
                                     "elapsedMs=${diagnosticElapsedSince(playbackDiagnostics.prepareStartedAtMs)} " +
                                     "positionMs=${snapshot.positionMs} bufferedMs=${snapshot.bufferedPositionMs} " +
                                     "durationMs=${snapshot.durationMs} eof=${snapshot.isEnded} " +
                                     "data=${diagnosticPlayerMessage(data.toJson())}",
                             )
-                            InAppLogger.info("MPV/Android", "event=end-file")
+                            InAppLogger.info("MPV/Android", "event=end-file reason=${reason.orEmpty()}")
                             latestOnSnapshot.value(snapshot)
+                            if (reason == "error") {
+                                latestOnError.value(
+                                    data.nodeString("file_error") ?: getString(Res.string.player_unable_to_play_stream),
+                                )
+                            }
                             nowPlayingController?.syncPlayback(snapshot)
                             view.keepScreenOn = snapshot.isPlaying || snapshot.isLoading
                         }

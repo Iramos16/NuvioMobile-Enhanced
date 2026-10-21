@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -53,12 +54,14 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
+import kotlinx.coroutines.delay
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.watch_history_approximate_date
 import nuvio.composeapp.generated.resources.watch_history_empty
 import nuvio.composeapp.generated.resources.watch_history_episode_label
 import nuvio.composeapp.generated.resources.watch_history_last_updated
 import nuvio.composeapp.generated.resources.watch_history_policy_title
+import nuvio.composeapp.generated.resources.watch_history_refresh
 import nuvio.composeapp.generated.resources.watch_history_refresh_failed
 import nuvio.composeapp.generated.resources.watch_history_title
 import nuvio.composeapp.generated.resources.watch_history_today
@@ -74,123 +77,138 @@ fun WatchHistoryScreen(
         WatchHistoryRepository.ensureLoaded()
         WatchHistoryRepository.uiState
     }.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { WatchHistoryRepository.refresh() }
+    // Coming back from Details re-runs this; only refresh when something is actually stale.
+    LaunchedEffect(Unit) { WatchHistoryRepository.refresh(force = false) }
 
     val tokens = MaterialTheme.nuvio
     val timeZone = remember { TimeZone.currentSystemDefault() }
-    val todayEpochDay = remember {
-        Instant.fromEpochMilliseconds(EpisodeReleaseDatePlatform.nowEpochMs())
-            .toLocalDateTime(timeZone).date.toEpochDays()
+    val todayEpochDay by produceState(initialValue = currentEpochDay(timeZone)) {
+        while (true) {
+            delay(60_000L)
+            value = currentEpochDay(timeZone)
+        }
     }
     var showPolicyMenu by rememberSaveable { mutableStateOf(false) }
 
-    NuvioScreen {
-        stickyHeader {
-            NuvioScreenHeader(
-                title = stringResource(Res.string.watch_history_title),
-                onBack = onBack,
-                actions = {
-                    if (uiState.isRefreshing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.padding(12.dp).size(20.dp),
-                            strokeWidth = 2.dp,
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(tokens.colors.background),
+    ) {
+        // Pinned outside the list so the day headers below can be sticky without pushing it away.
+        NuvioScreenHeader(
+            title = stringResource(Res.string.watch_history_title),
+            modifier = Modifier.padding(horizontal = tokens.spacing.screenHorizontal),
+            onBack = onBack,
+            actions = {
+                if (uiState.isRefreshing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.padding(12.dp).size(20.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    IconButton(onClick = { WatchHistoryRepository.refresh(force = true) }) {
+                        Icon(
+                            imageVector = Icons.Rounded.Refresh,
+                            contentDescription = stringResource(Res.string.watch_history_refresh),
+                            tint = tokens.colors.textPrimary,
                         )
-                    } else {
-                        IconButton(onClick = WatchHistoryRepository::refresh) {
-                            Icon(
-                                imageVector = Icons.Rounded.Refresh,
-                                contentDescription = null,
-                                tint = tokens.colors.textPrimary,
+                    }
+                }
+                Box {
+                    IconButton(onClick = { showPolicyMenu = true }) {
+                        Icon(
+                            imageVector = Icons.Rounded.MoreVert,
+                            contentDescription = stringResource(Res.string.watch_history_policy_title),
+                            tint = tokens.colors.textPrimary,
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showPolicyMenu,
+                        onDismissRequest = { showPolicyMenu = false },
+                    ) {
+                        WatchHistoryMergePolicy.entries.forEach { policy ->
+                            DropdownMenuItem(
+                                text = { Text(watchHistoryMergePolicyLabel(policy)) },
+                                leadingIcon = {
+                                    RadioButton(selected = policy == uiState.policy, onClick = null)
+                                },
+                                onClick = {
+                                    TrackingSettingsRepository.setWatchHistoryMergePolicy(policy)
+                                    showPolicyMenu = false
+                                },
                             )
                         }
                     }
-                    Box {
-                        IconButton(onClick = { showPolicyMenu = true }) {
-                            Icon(
-                                imageVector = Icons.Rounded.MoreVert,
-                                contentDescription = stringResource(Res.string.watch_history_policy_title),
-                                tint = tokens.colors.textPrimary,
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showPolicyMenu,
-                            onDismissRequest = { showPolicyMenu = false },
-                        ) {
-                            WatchHistoryMergePolicy.entries.forEach { policy ->
-                                DropdownMenuItem(
-                                    text = { Text(watchHistoryMergePolicyLabel(policy)) },
-                                    leadingIcon = {
-                                        RadioButton(selected = policy == uiState.policy, onClick = null)
-                                    },
-                                    onClick = {
-                                        TrackingSettingsRepository.setWatchHistoryMergePolicy(policy)
-                                        showPolicyMenu = false
-                                    },
-                                )
-                            }
-                        }
-                    }
-                },
-            )
-        }
+                }
+            },
+        )
 
-        if (uiState.failedSources.isNotEmpty()) {
-            item(key = "failed") {
-                Text(
-                    text = stringResource(
-                        Res.string.watch_history_refresh_failed,
-                        uiState.failedSources.sortedBy { it.ordinal }.joinToString { it.label() },
-                    ),
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
+        NuvioScreen(
+            modifier = Modifier.weight(1f),
+            topPadding = 0.dp,
+        ) {
+            if (uiState.failedSources.isNotEmpty()) {
+                item(key = "failed") {
+                    Text(
+                        text = stringResource(
+                            Res.string.watch_history_refresh_failed,
+                            uiState.failedSources.sortedBy { it.ordinal }.joinToString { it.label() },
+                        ),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
-        }
-        uiState.lastUpdatedEpochMs?.let { updatedAt ->
-            item(key = "updated") {
-                Text(
-                    text = stringResource(
-                        Res.string.watch_history_last_updated,
-                        formatDateTime(updatedAt, timeZone),
-                    ),
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 2.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            uiState.lastUpdatedEpochMs?.let { updatedAt ->
+                item(key = "updated") {
+                    Text(
+                        text = stringResource(
+                            Res.string.watch_history_last_updated,
+                            formatDateTime(updatedAt, timeZone),
+                        ),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-        }
 
-        if (uiState.isLoaded && uiState.sections.isEmpty() && !uiState.isRefreshing) {
-            item(key = "empty") {
-                Text(
-                    text = stringResource(Res.string.watch_history_empty),
-                    modifier = Modifier.fillMaxWidth().padding(32.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            if (uiState.isLoaded && uiState.sections.isEmpty() && !uiState.isRefreshing) {
+                item(key = "empty") {
+                    Text(
+                        text = stringResource(Res.string.watch_history_empty),
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-        }
 
-        uiState.sections.forEach { section ->
-            item(key = "day:${section.epochDay}") {
-                Text(
-                    text = dayLabel(section.epochDay, todayEpochDay),
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-            items(
-                items = section.entries,
-                key = { "entry:${watchHistoryWatchKey(it.item)}" },
-            ) { entry ->
-                WatchHistoryRow(
-                    entry = entry,
-                    timeZone = timeZone,
-                    onClick = { onOpenItem(entry.item) },
-                )
+            uiState.sections.forEach { section ->
+                stickyHeader(key = "day:${section.epochDay}") {
+                    Text(
+                        text = dayLabel(section.epochDay, todayEpochDay),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(tokens.colors.background)
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                items(
+                    items = section.entries,
+                    key = { "entry:${watchHistoryWatchKey(it.item)}" },
+                ) { entry ->
+                    WatchHistoryRow(
+                        entry = entry,
+                        timeZone = timeZone,
+                        onClick = { onOpenItem(entry.item) },
+                    )
+                }
             }
         }
     }
@@ -316,6 +334,10 @@ private fun dayLabel(epochDay: Long, todayEpochDay: Long): String = when (epochD
         "${date.day} ${localizedShortMonthName(date.month.number)} ${date.year}"
     }
 }
+
+private fun currentEpochDay(timeZone: TimeZone): Long =
+    Instant.fromEpochMilliseconds(EpisodeReleaseDatePlatform.nowEpochMs())
+        .toLocalDateTime(timeZone).date.toEpochDays()
 
 private fun formatTime(epochMs: Long, timeZone: TimeZone): String {
     val time = Instant.fromEpochMilliseconds(epochMs).toLocalDateTime(timeZone)

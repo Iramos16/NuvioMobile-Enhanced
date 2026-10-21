@@ -25,6 +25,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 import kotlin.time.Instant
+import com.nuvio.app.features.watching.domain.WatchedThreshold
 
 internal data class WeTrakrTarget(
     val isMovie: Boolean,
@@ -84,7 +85,7 @@ class WeTrakrTrackingWrites internal constructor(
         }
         val response = api.post(scope, path, body, allowNotFound = true)
         if (response.status == 404) return
-        if (action == TrackingScrobbleAction.STOP && event.progressPercent >= COMPLETION_THRESHOLD_PERCENT) {
+        if (action == TrackingScrobbleAction.STOP && WatchedThreshold.isReached(event.progressPercent)) {
             sync.refreshAsync(TrackingRefreshIntent.INVALIDATED)
         }
     }
@@ -341,10 +342,6 @@ class WeTrakrTrackingWrites internal constructor(
 
     private fun scope(profileId: Int): WeTrakrAuthScope = sync.currentScope().also {
         if (it.profileId != profileId) throw CancellationException("WeTrakr profile changed")
-    }
-
-    companion object {
-        const val COMPLETION_THRESHOLD_PERCENT = 80.0
     }
 }
 

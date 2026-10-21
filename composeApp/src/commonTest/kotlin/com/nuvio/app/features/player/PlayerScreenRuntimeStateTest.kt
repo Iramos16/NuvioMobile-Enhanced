@@ -244,7 +244,7 @@ class PlayerScreenRuntimeStateTest {
         assertFalse(
             shouldUpdateTrackingScrobbleAfterSeek(
                 hasActiveScrobble = true,
-                progressPercent = 80f,
+                progressPercent = 90f,
             ),
         )
     }
@@ -276,7 +276,7 @@ class PlayerScreenRuntimeStateTest {
         assertFalse(
             shouldSendStopScrobble(
                 hasActiveScrobble = false,
-                progressPercent = 79.99f,
+                progressPercent = 89.99f,
             ),
         )
     }
@@ -286,7 +286,7 @@ class PlayerScreenRuntimeStateTest {
         assertTrue(
             shouldSendStopScrobble(
                 hasActiveScrobble = false,
-                progressPercent = 80f,
+                progressPercent = 90f,
             ),
         )
         assertTrue(

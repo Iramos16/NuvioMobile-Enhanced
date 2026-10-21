@@ -43,6 +43,8 @@ internal expect object PlayerSettingsStorage {
     fun saveSeekPreviewEnabled(enabled: Boolean)
     fun loadMovieRecommendationsEnabled(): Boolean?
     fun saveMovieRecommendationsEnabled(enabled: Boolean)
+    fun loadStreamFailoverEnabled(): Boolean?
+    fun saveStreamFailoverEnabled(enabled: Boolean)
     fun loadAutoShowSubtitlesOnRewindEnabled(): Boolean?
     fun saveAutoShowSubtitlesOnRewindEnabled(enabled: Boolean)
     fun loadAutoShowSubtitlesOnMuteEnabled(): Boolean?
@@ -168,6 +170,8 @@ internal expect object PlayerSettingsStorage {
     fun saveNextEpisodeThresholdMode(mode: String)
     fun loadNextEpisodeThresholdPercent(): Float?
     fun saveNextEpisodeThresholdPercent(percent: Float)
+    fun loadWatchedThresholdPercent(): Int?
+    fun saveWatchedThresholdPercent(percent: Int)
     fun loadNextEpisodeThresholdMinutesBeforeEnd(): Float?
     fun saveNextEpisodeThresholdMinutesBeforeEnd(minutes: Float)
     fun loadPreloadNextEpisodeSources(): Boolean?

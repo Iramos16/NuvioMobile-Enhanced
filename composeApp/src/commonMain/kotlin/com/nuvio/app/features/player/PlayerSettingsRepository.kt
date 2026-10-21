@@ -5,6 +5,7 @@ import com.nuvio.app.features.player.skip.AutoSkipSegmentType
 import com.nuvio.app.features.player.skip.NextEpisodeThresholdMode
 import com.nuvio.app.features.streams.StreamAutoPlayMode
 import com.nuvio.app.features.streams.StreamAutoPlaySource
+import com.nuvio.app.features.watching.domain.WatchedThreshold
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,6 +52,7 @@ data class PlayerSettingsUiState(
     val seekBackSeconds: Int = 10,
     val seekPreviewEnabled: Boolean = true,
     val movieRecommendationsEnabled: Boolean = true,
+    val streamFailoverEnabled: Boolean = true,
     val autoShowSubtitlesOnRewindEnabled: Boolean = true,
     val autoShowSubtitlesOnMuteEnabled: Boolean = true,
     val externalPlayerEnabled: Boolean = false,
@@ -102,6 +104,7 @@ data class PlayerSettingsUiState(
     val nextEpisodeThresholdMode: NextEpisodeThresholdMode = NextEpisodeThresholdMode.PERCENTAGE,
     val nextEpisodeThresholdPercent: Float = 99f,
     val nextEpisodeThresholdMinutesBeforeEnd: Float = 2f,
+    val watchedThresholdPercent: Int = WatchedThreshold.DEFAULT_PERCENT,
     val preloadNextEpisodeSources: Boolean = false,
     val miniPlayerEnabled: Boolean = true,
     val privateViewingEnabled: Boolean = false,
@@ -148,6 +151,7 @@ object PlayerSettingsRepository {
     private var seekBackSeconds = 10
     private var seekPreviewEnabled = true
     private var movieRecommendationsEnabled = true
+    private var streamFailoverEnabled = true
     private var autoShowSubtitlesOnRewindEnabled = true
     private var autoShowSubtitlesOnMuteEnabled = true
     private var externalPlayerEnabled = false
@@ -199,6 +203,7 @@ object PlayerSettingsRepository {
     private var nextEpisodeThresholdMode = NextEpisodeThresholdMode.PERCENTAGE
     private var nextEpisodeThresholdPercent = 99f
     private var nextEpisodeThresholdMinutesBeforeEnd = 2f
+    private var watchedThresholdPercent = WatchedThreshold.DEFAULT_PERCENT
     private var preloadNextEpisodeSources = false
     private var miniPlayerEnabled = true
     private var privateViewingEnabled = false
@@ -250,6 +255,7 @@ object PlayerSettingsRepository {
         seekBackSeconds = 10
         seekPreviewEnabled = true
         movieRecommendationsEnabled = true
+        streamFailoverEnabled = true
         autoShowSubtitlesOnRewindEnabled = true
         autoShowSubtitlesOnMuteEnabled = true
         externalPlayerEnabled = false
@@ -301,6 +307,7 @@ object PlayerSettingsRepository {
         nextEpisodeThresholdMode = NextEpisodeThresholdMode.PERCENTAGE
         nextEpisodeThresholdPercent = 99f
         nextEpisodeThresholdMinutesBeforeEnd = 2f
+        watchedThresholdPercent = WatchedThreshold.DEFAULT_PERCENT
         preloadNextEpisodeSources = false
         miniPlayerEnabled = true
         privateViewingEnabled = false
@@ -347,6 +354,7 @@ object PlayerSettingsRepository {
         seekBackSeconds = normalizeSeekStepSeconds(PlayerSettingsStorage.loadSeekBackSeconds())
         seekPreviewEnabled = PlayerSettingsStorage.loadSeekPreviewEnabled() ?: true
         movieRecommendationsEnabled = PlayerSettingsStorage.loadMovieRecommendationsEnabled() ?: true
+        streamFailoverEnabled = PlayerSettingsStorage.loadStreamFailoverEnabled() ?: true
         autoShowSubtitlesOnRewindEnabled = PlayerSettingsStorage.loadAutoShowSubtitlesOnRewindEnabled() ?: true
         autoShowSubtitlesOnMuteEnabled = PlayerSettingsStorage.loadAutoShowSubtitlesOnMuteEnabled() ?: true
         externalPlayerEnabled = PlayerSettingsStorage.loadExternalPlayerEnabled() ?: false
@@ -460,6 +468,9 @@ object PlayerSettingsRepository {
             ?: NextEpisodeThresholdMode.PERCENTAGE
         nextEpisodeThresholdPercent = PlayerSettingsStorage.loadNextEpisodeThresholdPercent() ?: 99f
         nextEpisodeThresholdMinutesBeforeEnd = PlayerSettingsStorage.loadNextEpisodeThresholdMinutesBeforeEnd() ?: 2f
+        watchedThresholdPercent = WatchedThreshold.normalize(
+            PlayerSettingsStorage.loadWatchedThresholdPercent() ?: WatchedThreshold.DEFAULT_PERCENT,
+        )
         preloadNextEpisodeSources = PlayerSettingsStorage.loadPreloadNextEpisodeSources() ?: false
         miniPlayerEnabled = PlayerSettingsStorage.loadMiniPlayerEnabled() ?: true
         privateViewingEnabled = PlayerSettingsStorage.loadPrivateViewingEnabled() ?: false
@@ -639,6 +650,14 @@ object PlayerSettingsRepository {
         movieRecommendationsEnabled = enabled
         publish()
         PlayerSettingsStorage.saveMovieRecommendationsEnabled(enabled)
+    }
+
+    fun setStreamFailoverEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (streamFailoverEnabled == enabled) return
+        streamFailoverEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveStreamFailoverEnabled(enabled)
     }
 
     fun setAutoShowSubtitlesOnRewindEnabled(enabled: Boolean) {
@@ -1068,6 +1087,15 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveNextEpisodeThresholdPercent(percent)
     }
 
+    fun setWatchedThresholdPercent(percent: Int) {
+        ensureLoaded()
+        val normalized = WatchedThreshold.normalize(percent)
+        if (watchedThresholdPercent == normalized) return
+        watchedThresholdPercent = normalized
+        publish()
+        PlayerSettingsStorage.saveWatchedThresholdPercent(normalized)
+    }
+
     fun setNextEpisodeThresholdMinutesBeforeEnd(minutes: Float) {
         ensureLoaded()
         if (nextEpisodeThresholdMinutesBeforeEnd == minutes) return
@@ -1290,6 +1318,7 @@ object PlayerSettingsRepository {
     }
 
     private fun publish() {
+        WatchedThreshold.percent = watchedThresholdPercent
         _uiState.value = PlayerSettingsUiState(
             useLegacyPlayerLayout = useLegacyPlayerLayout,
             showLoadingOverlay = showLoadingOverlay,
@@ -1309,6 +1338,7 @@ object PlayerSettingsRepository {
             seekBackSeconds = seekBackSeconds,
             seekPreviewEnabled = seekPreviewEnabled,
             movieRecommendationsEnabled = movieRecommendationsEnabled,
+            streamFailoverEnabled = streamFailoverEnabled,
             autoShowSubtitlesOnRewindEnabled = autoShowSubtitlesOnRewindEnabled,
             autoShowSubtitlesOnMuteEnabled = autoShowSubtitlesOnMuteEnabled,
             externalPlayerEnabled = externalPlayerEnabled,
@@ -1360,6 +1390,7 @@ object PlayerSettingsRepository {
             nextEpisodeThresholdMode = nextEpisodeThresholdMode,
             nextEpisodeThresholdPercent = nextEpisodeThresholdPercent,
             nextEpisodeThresholdMinutesBeforeEnd = nextEpisodeThresholdMinutesBeforeEnd,
+            watchedThresholdPercent = watchedThresholdPercent,
             preloadNextEpisodeSources = preloadNextEpisodeSources,
             miniPlayerEnabled = miniPlayerEnabled,
             privateViewingEnabled = privateViewingEnabled,
