@@ -46,6 +46,7 @@ data class PlayerSettingsUiState(
     val swipeToSeekEnabled: Boolean = true,
     val seekPreviewEnabled: Boolean = true,
     val movieRecommendationsEnabled: Boolean = true,
+    val streamFailoverEnabled: Boolean = true,
     val autoShowSubtitlesOnRewindEnabled: Boolean = true,
     val autoShowSubtitlesOnMuteEnabled: Boolean = true,
     val externalPlayerEnabled: Boolean = false,
@@ -138,6 +139,7 @@ object PlayerSettingsRepository {
     private var swipeToSeekEnabled = true
     private var seekPreviewEnabled = true
     private var movieRecommendationsEnabled = true
+    private var streamFailoverEnabled = true
     private var autoShowSubtitlesOnRewindEnabled = true
     private var autoShowSubtitlesOnMuteEnabled = true
     private var externalPlayerEnabled = false
@@ -235,6 +237,7 @@ object PlayerSettingsRepository {
         swipeToSeekEnabled = true
         seekPreviewEnabled = true
         movieRecommendationsEnabled = true
+        streamFailoverEnabled = true
         autoShowSubtitlesOnRewindEnabled = true
         autoShowSubtitlesOnMuteEnabled = true
         externalPlayerEnabled = false
@@ -327,6 +330,7 @@ object PlayerSettingsRepository {
         swipeToSeekEnabled = PlayerSettingsStorage.loadSwipeToSeekEnabled() ?: true
         seekPreviewEnabled = PlayerSettingsStorage.loadSeekPreviewEnabled() ?: true
         movieRecommendationsEnabled = PlayerSettingsStorage.loadMovieRecommendationsEnabled() ?: true
+        streamFailoverEnabled = PlayerSettingsStorage.loadStreamFailoverEnabled() ?: true
         autoShowSubtitlesOnRewindEnabled = PlayerSettingsStorage.loadAutoShowSubtitlesOnRewindEnabled() ?: true
         autoShowSubtitlesOnMuteEnabled = PlayerSettingsStorage.loadAutoShowSubtitlesOnMuteEnabled() ?: true
         externalPlayerEnabled = PlayerSettingsStorage.loadExternalPlayerEnabled() ?: false
@@ -572,6 +576,14 @@ object PlayerSettingsRepository {
         movieRecommendationsEnabled = enabled
         publish()
         PlayerSettingsStorage.saveMovieRecommendationsEnabled(enabled)
+    }
+
+    fun setStreamFailoverEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (streamFailoverEnabled == enabled) return
+        streamFailoverEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveStreamFailoverEnabled(enabled)
     }
 
     fun setAutoShowSubtitlesOnRewindEnabled(enabled: Boolean) {
@@ -1246,6 +1258,7 @@ object PlayerSettingsRepository {
             swipeToSeekEnabled = swipeToSeekEnabled,
             seekPreviewEnabled = seekPreviewEnabled,
             movieRecommendationsEnabled = movieRecommendationsEnabled,
+            streamFailoverEnabled = streamFailoverEnabled,
             autoShowSubtitlesOnRewindEnabled = autoShowSubtitlesOnRewindEnabled,
             autoShowSubtitlesOnMuteEnabled = autoShowSubtitlesOnMuteEnabled,
             externalPlayerEnabled = externalPlayerEnabled,

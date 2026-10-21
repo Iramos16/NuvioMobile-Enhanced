@@ -1,13 +1,20 @@
 package com.nuvio.app.features.catalog
 
+import com.nuvio.app.features.library.LibraryDisplaySettingsRepository
+import com.nuvio.app.features.library.LibraryFilterSelection
 import com.nuvio.app.features.library.LibraryUiState
+import com.nuvio.app.features.library.LibraryWatchSnapshot
 import com.nuvio.app.features.library.LibraryProviderOrders
 import com.nuvio.app.features.library.LibrarySortOption
+import com.nuvio.app.features.library.buildLibraryWatchSnapshot
+import com.nuvio.app.features.library.filterLibrarySections
 import com.nuvio.app.features.library.librarySorter
 import com.nuvio.app.features.library.observeLibraryProviderOrders
 import com.nuvio.app.features.library.sortLibraryItems
 import com.nuvio.app.features.library.toMetaPreview
 import com.nuvio.app.features.profiles.ProfileRepository
+import com.nuvio.app.features.watched.WatchedRepository
+import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
@@ -20,11 +27,48 @@ import kotlinx.coroutines.flow.map
 internal fun Flow<LibraryUiState>.libraryCatalogStates(
     target: CatalogTarget.Library,
     providerOrders: Flow<LibraryProviderOrders>? = null,
-): Flow<CatalogUiState> = if (providerOrders == null) {
-    map { it.libraryCatalogState(target, LibraryProviderOrders()) }
-} else {
-    combine(providerOrders) { libraryState, orders -> libraryState.libraryCatalogState(target, orders) }
-}.distinctUntilChanged()
+    filters: Flow<LibraryFilterSelection>? = null,
+): Flow<CatalogUiState> {
+    val inputs: Flow<Pair<LibraryProviderOrders, LibraryFilterSelection>>? = when {
+        providerOrders != null && filters != null -> combine(providerOrders, filters, ::Pair)
+        providerOrders != null -> providerOrders.map { it to LibraryFilterSelection() }
+        filters != null -> filters.map { LibraryProviderOrders() to it }
+        else -> null
+    }
+    return if (inputs == null) {
+        map { it.libraryCatalogState(target, LibraryProviderOrders(), LibraryFilterSelection()) }
+    } else {
+        combine(inputs) { libraryState, (orders, selection) -> libraryState.libraryCatalogState(target, orders, selection) }
+    }.distinctUntilChanged()
+}
+
+// Same Category/Status selection the Library rows apply, so View all lists what the row shows.
+internal fun libraryCatalogFilters(): Flow<LibraryFilterSelection> {
+    LibraryDisplaySettingsRepository.ensureLoaded()
+    WatchedRepository.ensureLoaded()
+    WatchProgressRepository.ensureLoaded()
+    return combine(
+        LibraryDisplaySettingsRepository.uiState,
+        WatchedRepository.uiState,
+        WatchedRepository.fullyWatchedSeriesKeys,
+        WatchProgressRepository.uiState,
+    ) { settings, watched, fullyWatchedSeriesKeys, progress ->
+        LibraryFilterSelection(
+            category = settings.category,
+            statuses = settings.statusFilter,
+            watch = if (settings.statusFilter.isEmpty()) {
+                LibraryWatchSnapshot.Empty
+            } else {
+                buildLibraryWatchSnapshot(
+                    watchedItems = watched.items,
+                    watchedKeys = watched.watchedKeys,
+                    fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
+                    progressEntries = progress.entries,
+                )
+            },
+        )
+    }.distinctUntilChanged()
+}
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 internal fun Flow<LibraryUiState>.libraryCatalogOrders(target: CatalogTarget.Library): Flow<LibraryProviderOrders> =
@@ -37,8 +81,10 @@ internal fun Flow<LibraryUiState>.libraryCatalogOrders(target: CatalogTarget.Lib
 private suspend fun LibraryUiState.libraryCatalogState(
     target: CatalogTarget.Library,
     orders: LibraryProviderOrders,
+    filters: LibraryFilterSelection,
 ): CatalogUiState {
-    val items = sections.firstOrNull { it.type == target.sectionType }?.items.orEmpty()
+    val section = sections.firstOrNull { it.type == target.sectionType }
+    val items = section?.let { filterLibrarySections(listOf(it), filters).firstOrNull()?.items }.orEmpty()
     return CatalogUiState(
         items = sortLibraryItems(
             items = items,
