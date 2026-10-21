@@ -30,4 +30,8 @@ internal actual object AppFileCache {
             temporary.delete()
         }
     }
+
+    actual fun delete(path: String) {
+        root?.resolve(path)?.delete()
+    }
 }
