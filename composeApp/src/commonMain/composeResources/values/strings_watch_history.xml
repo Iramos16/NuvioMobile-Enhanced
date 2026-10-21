@@ -1,0 +1,17 @@
+<resources>
+    <string name="watch_history_title">Watch History</string>
+    <string name="watch_history_open">Open watch history</string>
+    <string name="watch_history_policy_title">History merge</string>
+    <string name="watch_history_policy_description">How watch history from multiple trackers is combined</string>
+    <string name="watch_history_policy_most_recent">Most recent watch</string>
+    <string name="watch_history_policy_most_recent_description">Use whichever tracker watched each title or episode most recently</string>
+    <string name="watch_history_policy_most_complete">Most complete history</string>
+    <string name="watch_history_policy_most_complete_description">Use the tracker with the most history for each title, filling gaps from others</string>
+    <string name="watch_history_empty">No watch history yet</string>
+    <string name="watch_history_today">Today</string>
+    <string name="watch_history_yesterday">Yesterday</string>
+    <string name="watch_history_refresh_failed">Couldn\'t refresh: %1$s</string>
+    <string name="watch_history_last_updated">Last updated %1$s</string>
+    <string name="watch_history_approximate_date">Approximate date</string>
+    <string name="watch_history_episode_label">S%1$02dE%2$02d</string>
+</resources>

@@ -192,6 +192,7 @@ fun LibraryScreen(
     onPreviewClick: ((MetaPreview) -> Unit)? = null,
     onPreviewLongClick: ((MetaPreview) -> Unit)? = null,
     onDownloadsClick: (() -> Unit)? = null,
+    onWatchHistoryClick: (() -> Unit)? = null,
 ) {
     val uiState by remember {
         LibraryRepository.ensureLoaded()
@@ -536,6 +537,9 @@ fun LibraryScreen(
                                 cutoutColor = MaterialTheme.colorScheme.background,
                             )
                         }
+                    }
+                    if (onWatchHistoryClick != null) {
+                        LibraryWatchHistoryButton(onClick = onWatchHistoryClick)
                     }
                     if (onDownloadsClick != null) {
                         LibraryDownloadsButton(onClick = onDownloadsClick)

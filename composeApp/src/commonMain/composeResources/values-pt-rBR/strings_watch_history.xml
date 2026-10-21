@@ -1,0 +1,17 @@
+<resources>
+    <string name="watch_history_title">Histórico</string>
+    <string name="watch_history_open">Abrir histórico de exibição</string>
+    <string name="watch_history_policy_title">Mesclagem do histórico</string>
+    <string name="watch_history_policy_description">Como o histórico de vários rastreadores é combinado</string>
+    <string name="watch_history_policy_most_recent">Exibição mais recente</string>
+    <string name="watch_history_policy_most_recent_description">Usar o rastreador que registrou cada título ou episódio mais recentemente</string>
+    <string name="watch_history_policy_most_complete">Histórico mais completo</string>
+    <string name="watch_history_policy_most_complete_description">Usar o rastreador com mais histórico de cada título, completando lacunas com os outros</string>
+    <string name="watch_history_empty">Nenhum histórico ainda</string>
+    <string name="watch_history_today">Hoje</string>
+    <string name="watch_history_yesterday">Ontem</string>
+    <string name="watch_history_refresh_failed">Não foi possível atualizar: %1$s</string>
+    <string name="watch_history_last_updated">Atualizado %1$s</string>
+    <string name="watch_history_approximate_date">Data aproximada</string>
+    <string name="watch_history_episode_label">T%1$02dE%2$02d</string>
+</resources>
