@@ -1,5 +1,6 @@
 package com.nuvio.app.features.library
 
+import com.nuvio.app.features.tracking.TrackingListStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +28,8 @@ enum class LibrarySortOption {
 data class LibraryDisplaySettingsUiState(
     val layoutMode: LibraryLayoutMode = LibraryLayoutMode.HORIZONTAL,
     val sortOption: LibrarySortOption = LibrarySortOption.DEFAULT,
+    val category: LibraryCategory = LibraryCategory.ALL,
+    val statusFilter: Set<TrackingListStatus> = emptySet(),
 )
 
 object LibraryDisplaySettingsRepository {
@@ -63,6 +66,28 @@ object LibraryDisplaySettingsRepository {
         persist()
     }
 
+    fun setCategory(category: LibraryCategory) {
+        ensureLoaded()
+        if (_uiState.value.category == category) return
+        _uiState.value = _uiState.value.copy(category = category)
+        persist()
+    }
+
+    fun setStatusFilter(statuses: Set<TrackingListStatus>) {
+        ensureLoaded()
+        if (_uiState.value.statusFilter == statuses) return
+        _uiState.value = _uiState.value.copy(statusFilter = statuses)
+        persist()
+    }
+
+    fun clearFilters() {
+        ensureLoaded()
+        val current = _uiState.value
+        if (current.category == LibraryCategory.ALL && current.statusFilter.isEmpty()) return
+        _uiState.value = current.copy(category = LibraryCategory.ALL, statusFilter = emptySet())
+        persist()
+    }
+
     private fun loadFromDisk() {
         hasLoaded = true
         _uiState.value = decodeLibraryDisplaySettings(LibraryDisplaySettingsStorage.loadPayload())
@@ -81,9 +106,9 @@ internal data class LibraryVerticalEntry(
 internal data class LibraryVerticalProjection(
     val availableSections: List<LibrarySection>,
     val selectedSectionKey: String?,
-    val availableTypes: List<String>,
-    val selectedType: String?,
     val entries: List<LibraryVerticalEntry>,
+    val hasActiveFilters: Boolean = false,
+    val totalBeforeFilters: Int = entries.size,
 )
 
 private val ReleaseSortOptions = setOf(LibrarySortOption.RELEASED_DESC, LibrarySortOption.RELEASED_ASC)
@@ -165,12 +190,14 @@ internal fun buildLibraryVerticalProjection(
     sections: List<LibrarySection>,
     sourceMode: LibrarySourceMode,
     selectedSectionKey: String?,
-    selectedType: String?,
+    filters: LibraryFilterSelection,
     sortOption: LibrarySortOption,
     providerOrders: Map<String, Map<String, Int>> = emptyMap(),
 ): LibraryVerticalProjection {
-    val availableSections = if (sourceMode.isRemoteTrackingSource) sections else emptyList()
-    val selectedSection = if (sourceMode.isRemoteTrackingSource) {
+    // Status-native providers expose their statuses as sections, so the status filter replaces the list picker.
+    val usesListPicker = sourceMode.isRemoteTrackingSource && !sourceMode.hasNativeWatchStatus
+    val availableSections = if (usesListPicker) sections else emptyList()
+    val selectedSection = if (usesListPicker) {
         sections.firstOrNull { it.type == selectedSectionKey } ?: sections.firstOrNull()
     } else {
         null
@@ -189,17 +216,7 @@ internal fun buildLibraryVerticalProjection(
             deduplicatedEntries[key] = entry
         }
     }
-    val availableTypes = deduplicatedEntries.values
-        .map { entry -> (entry.item.mediaCategory ?: entry.item.type).normalizedLibraryType() }
-        .filter { it.isNotBlank() }
-        .distinct()
-        .sorted()
-    val effectiveType = selectedType
-        ?.normalizedLibraryType()
-        ?.takeIf { it in availableTypes }
-    val filteredEntries = deduplicatedEntries.values.filter { entry ->
-        effectiveType == null || (entry.item.mediaCategory ?: entry.item.type).normalizedLibraryType() == effectiveType
-    }
+    val filteredEntries = deduplicatedEntries.values.filter { entry -> filters.matches(entry.item, entry.section) }
     val entryByKey = filteredEntries.associateBy { entry -> libraryDisplayItemKey(entry.item) }
     val sortedEntries = sortLibraryItems(
         items = filteredEntries.map { entry -> entry.item },
@@ -212,9 +229,9 @@ internal fun buildLibraryVerticalProjection(
     return LibraryVerticalProjection(
         availableSections = availableSections,
         selectedSectionKey = selectedSection?.type,
-        availableTypes = availableTypes,
-        selectedType = effectiveType,
         entries = sortedEntries,
+        hasActiveFilters = filters.isActive,
+        totalBeforeFilters = deduplicatedEntries.size,
     )
 }
 
@@ -223,6 +240,8 @@ internal fun encodeLibraryDisplaySettings(state: LibraryDisplaySettingsUiState):
         StoredLibraryDisplaySettings(
             layoutMode = state.layoutMode.name,
             sortOption = state.sortOption.name,
+            category = state.category.name,
+            statuses = state.statusFilter.sortedBy { it.ordinal }.map { it.name },
         ),
     )
 
@@ -241,6 +260,11 @@ internal fun decodeLibraryDisplaySettings(payload: String?): LibraryDisplaySetti
         sortOption = stored?.sortOption
             ?.let { value -> LibrarySortOption.entries.firstOrNull { it.name == value } }
             ?: LibrarySortOption.DEFAULT,
+        category = stored?.category
+            ?.let { value -> LibraryCategory.entries.firstOrNull { it.name == value } }
+            ?: LibraryCategory.ALL,
+        statusFilter = stored?.statuses.orEmpty()
+            .mapNotNullTo(linkedSetOf()) { value -> TrackingListStatus.entries.firstOrNull { it.name == value } },
     )
 }
 
@@ -278,6 +302,8 @@ internal val LibrarySourceMode.isRemoteTrackingSource: Boolean
 private data class StoredLibraryDisplaySettings(
     @SerialName("layout_mode") val layoutMode: String = LibraryLayoutMode.HORIZONTAL.name,
     @SerialName("sort_option") val sortOption: String = LibrarySortOption.DEFAULT.name,
+    @SerialName("category") val category: String = LibraryCategory.ALL.name,
+    @SerialName("statuses") val statuses: List<String> = emptyList(),
 )
 
 private fun libraryProviderOrderComparator(ranks: Map<String, Int>): Comparator<LibraryItem> =
