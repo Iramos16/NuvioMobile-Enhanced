@@ -62,6 +62,8 @@ class RootTabHostTest {
     private val tokens = mutableMapOf<AppScreenTab, Any>()
     private val owners = mutableMapOf<AppScreenTab, LifecycleOwner>()
     private val measures = mutableMapOf<AppScreenTab, Int>()
+    // Every tab, Live TV included, ending back on Home.
+    private val tabsEndingAtHome = AppScreenTab.entries.filter { it != AppScreenTab.Home } + AppScreenTab.Home
 
     @Test
     fun switchingAllTabsRetainsVisitedContentWithoutMountingUnvisitedTabs() {
@@ -70,7 +72,7 @@ class RootTabHostTest {
         val homeToken = tokens.getValue(AppScreenTab.Home)
 
         repeat(2) {
-            for (tab in listOf(AppScreenTab.Search, AppScreenTab.Library, AppScreenTab.Settings, AppScreenTab.Home)) {
+            for (tab in tabsEndingAtHome) {
                 select(tab)
                 compose.onNodeWithTag(tab.name).assertIsDisplayed()
                 AppScreenTab.entries.filter { it != tab }.forEach { hidden ->
@@ -115,7 +117,7 @@ class RootTabHostTest {
             }
         }
 
-        for (tab in listOf(AppScreenTab.Search, AppScreenTab.Library, AppScreenTab.Settings, AppScreenTab.Home)) {
+        for (tab in tabsEndingAtHome) {
             select(tab)
             compose.runOnIdle { assertEquals(setOf(tab), runningEffects) }
         }

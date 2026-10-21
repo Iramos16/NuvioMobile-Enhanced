@@ -42,7 +42,7 @@ class DownloadSubtitlesTest {
     @get:Rule val temporary = TemporaryFolder()
 
     @Test
-    fun backgroundDownloadSavesAddonAndStreamSubtitlesBeforeVideo(): Unit = runBlocking {
+    fun backgroundDownloadSavesAddonAndStreamSubtitlesWithTheVideo(): Unit = runBlocking {
         val context = RuntimeEnvironment.getApplication()
         val paths = Collections.synchronizedList(mutableListOf<String>())
         val playerSubtitles = SubtitleRepository.addonSubtitles.value
@@ -90,7 +90,9 @@ class DownloadSubtitlesTest {
         val tracks = DownloadSubtitles.localSubtitles(uri)
         assertEquals(DownloadStatus.Completed, restored.status)
         assertEquals(setOf("en", "fr"), tracks.map { it.language }.toSet())
-        assertEquals("/video", paths.last())
+        // Subtitles download alongside the video, so request order is not fixed; they are still
+        // saved before the download completes (checked through the tracks above).
+        assertEquals(1, paths.count { it == "/video" })
         assertEquals(1, paths.count { it == "/english" })
         assertEquals(1, paths.count { it == "/french" })
         assertTrue(tracks.single { it.language == "en" }.name.orEmpty().contains("OpenSubtitles"))

@@ -61,11 +61,14 @@ class AndroidDownloadLifecycleTest {
     }
 
     @Test
-    fun missingSystemJobIsPausedInsteadOfSilentlyRescheduling() {
+    fun missingSystemJobIsRescheduledInsteadOfPaused() {
         val scheduler = AndroidDownloadScheduler(RuntimeEnvironment.getApplication())
         val transfer = scheduler.store.begin(downloadItem().copy(fileName = "stopped.mkv"))
 
-        assertEquals(DownloadStatus.Paused, scheduler.restore(transfer.item).status)
+        // A download whose job the system dropped is scheduled again rather than paused (#167).
+        // Robolectric does not keep jobs across namespaced JobScheduler instances, so the
+        // scheduled job itself (and a failed reschedule pausing it) cannot be observed here.
+        assertEquals(DownloadStatus.Downloading, scheduler.restore(transfer.item).status)
     }
 
     @Test

@@ -24,14 +24,25 @@ class HomeHeroSectionTest {
     }
 
     @Test
-    fun `mobile hero height stays compact without continue watching`() {
+    fun `mobile portrait hero is full-bleed and width driven`() {
         val layout = homeHeroLayout(
             maxWidthDp = 390f,
             viewportHeightDp = 844f,
         )
 
         assertEquals(false, layout.isTablet)
-        assertEquals(452.4f, layout.heroHeight.value, 0.001f)
+        assertEquals(585f, layout.heroHeight.value, 0.001f)
+    }
+
+    @Test
+    fun `mobile portrait hero ignores the below-section reserve`() {
+        val layout = homeHeroLayout(
+            maxWidthDp = 390f,
+            viewportHeightDp = 568f,
+            mobileBelowSectionHeightHintDp = 300f,
+        )
+
+        assertEquals(585f, layout.heroHeight.value, 0.001f)
     }
 
     @Test
@@ -46,9 +57,9 @@ class HomeHeroSectionTest {
     }
 
     @Test
-    fun `mobile hero height leaves room for continue watching card section`() {
-        val viewportHeight = 844f
-        val continueWatchingLayout = rememberContinueWatchingLayout(maxWidthDp = 390f)
+    fun `mobile landscape hero height leaves room for continue watching card section`() {
+        val viewportHeight = 560f
+        val continueWatchingLayout = rememberContinueWatchingLayout(maxWidthDp = 599f)
         val continueWatchingHeight = continueWatchingSectionHeightEstimate(
             style = ContinueWatchingSectionStyle.Card,
             layout = continueWatchingLayout,
@@ -60,7 +71,7 @@ class HomeHeroSectionTest {
             basePosterWidthDp = 110,
         )
         val layout = homeHeroLayout(
-            maxWidthDp = 390f,
+            maxWidthDp = 599f,
             viewportHeightDp = viewportHeight,
             mobileBelowSectionHeightHintDp = reserveHeight.value,
         )
@@ -69,14 +80,14 @@ class HomeHeroSectionTest {
     }
 
     @Test
-    fun `mobile hero can shrink below default minimum to fit short viewport`() {
+    fun `mobile landscape hero can shrink below default minimum to fit short viewport`() {
         val layout = homeHeroLayout(
-            maxWidthDp = 390f,
-            viewportHeightDp = 568f,
+            maxWidthDp = 599f,
+            viewportHeightDp = 560f,
             mobileBelowSectionHeightHintDp = 300f,
         )
 
         assertEquals(false, layout.isTablet)
-        assertEquals(268f, layout.heroHeight.value, 0.001f)
+        assertEquals(260f, layout.heroHeight.value, 0.001f)
     }
 }

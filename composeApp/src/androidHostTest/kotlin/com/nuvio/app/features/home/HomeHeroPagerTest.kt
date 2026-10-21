@@ -75,7 +75,10 @@ class HomeHeroPagerTest {
     }
 
     private fun assertWrapFrames(expectedIndex: Int) {
-        val intermediateTitle = (1..6)
+        // The hero keeps the titles either side of the current one composed but transparent
+        // (Hero 1 and Hero 6 around a 7 <-> 0 wrap) so swipes stay smooth. A wrap must never
+        // pass through any other title.
+        val intermediateTitle = (2..5)
             .map { hasText("Hero $it") }
             .reduce { matcher, next -> matcher or next }
         repeat(100) {
