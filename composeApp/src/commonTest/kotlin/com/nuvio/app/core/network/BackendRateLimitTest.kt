@@ -24,7 +24,9 @@ class BackendRateLimitTest {
     fun `retry delay uses bounded fallback and adds jitter`() {
         assertEquals(1_250L, backendRetryDelayMillis(0, null, nowEpochMs = 0L, jitterMs = 250L))
         assertEquals(30_500L, backendRetryDelayMillis(10, null, nowEpochMs = 0L, jitterMs = 500L))
-        assertEquals(60_250L, backendRetryDelayMillis(0, "60", nowEpochMs = 0L, jitterMs = 250L))
+        // Retry-After is honoured up to the 30 s cap, so a bad header cannot stall the shared client.
+        assertEquals(10_250L, backendRetryDelayMillis(0, "10", nowEpochMs = 0L, jitterMs = 250L))
+        assertEquals(30_250L, backendRetryDelayMillis(0, "60", nowEpochMs = 0L, jitterMs = 250L))
     }
 
     @Test

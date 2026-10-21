@@ -102,6 +102,8 @@ internal object LiquidGlassEffectDefaults {
 
 private val liquidGlassSettingsJson = Json {
     ignoreUnknownKeys = true
+    // Write every field: an omitted one decodes to the caller's defaults, not the class defaults.
+    encodeDefaults = true
 }
 
 internal fun encodeLiquidGlassEffectSettings(
