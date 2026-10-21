@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import com.nuvio.app.core.time.EpisodeReleaseDatePlatform
 import com.nuvio.app.core.tracking.ensureTrackingProvidersRegistered
 import com.nuvio.app.features.anilist.AniListTracker
+import com.nuvio.app.features.profiles.MAX_PROFILES
 import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.simkl.SimklSyncRepository
 import com.nuvio.app.features.tracking.TrackingProviderRegistry
@@ -17,6 +18,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -74,11 +77,16 @@ internal interface WatchHistorySourceGateway {
 internal interface WatchHistoryPayloadStore {
     fun load(profileId: Int): String?
     fun save(profileId: Int, payload: String)
+    fun delete(profileId: Int)
 }
+
+/** An automatic refresh is skipped while every connected source was pulled more recently than this. */
+internal const val WATCH_HISTORY_STALE_AFTER_MS = 5L * 60L * 1000L
 
 private object PlatformWatchHistoryPayloadStore : WatchHistoryPayloadStore {
     override fun load(profileId: Int): String? = WatchHistoryStorage.loadPayload(profileId)
     override fun save(profileId: Int, payload: String) = WatchHistoryStorage.savePayload(profileId, payload)
+    override fun delete(profileId: Int) = Unit
 }
 
 /** Reads each connected tracker's watched projection plus local Nuvio items. Never writes. */
@@ -139,6 +147,7 @@ internal class WatchHistoryController(
 
     private val cache = MutableStateFlow<Cache?>(null)
     private val refreshing = MutableStateFlow(false)
+    private val refreshQueued = MutableStateFlow(false)
     private val failed = MutableStateFlow<Set<WatchHistorySourceId>>(emptySet())
 
     private val _uiState = MutableStateFlow(WatchHistoryUiState())
@@ -168,7 +177,8 @@ internal class WatchHistoryController(
                     sections = groupWatchHistoryByDay(mergeWatchHistory(sources, policy), timeZone()),
                     isLoaded = true,
                     isRefreshing = refreshing,
-                    lastUpdatedEpochMs = connected.mapNotNull { cache.stored.lastUpdatedEpochMs[it.name] }.maxOrNull(),
+                    // The oldest source decides, so one failing tracker cannot make the list look fresh.
+                    lastUpdatedEpochMs = connected.mapNotNull { cache.stored.lastUpdatedEpochMs[it.name] }.minOrNull(),
                     failedSources = failed intersect connected,
                     connectedSources = connected,
                     policy = policy,
@@ -177,48 +187,89 @@ internal class WatchHistoryController(
         }
     }
 
-    suspend fun refresh() {
-        if (!refreshing.compareAndSet(expect = false, update = true)) return
-        try {
-            val profileId = profileIds.first()
-            val connected = gateway.connectedSources().first()
-            val results = supervisorScope {
-                connected.map { id ->
-                    async {
-                        id to try {
-                            Result.success(gateway.pull(id, profileId))
-                        } catch (error: CancellationException) {
-                            throw error
-                        } catch (error: Throwable) {
-                            log.w(error) { "${id.name} refresh failed" }
-                            Result.failure(error)
-                        }
-                    }
-                }.awaitAll()
+    /** Forgets every listed profile's history, on disk and in memory (account sign-out). */
+    fun clear(profileIds: IntRange) {
+        profileIds.forEach(store::delete)
+        failed.value = emptySet()
+        cache.update { current -> current?.let { Cache(it.profileId, StoredWatchHistory()) } }
+    }
+
+    /**
+     * Pulls every connected source. With [force] off, nothing happens while all connected sources
+     * are fresh. A call made during a running refresh queues exactly one follow-up run, so a
+     * refresh requested after a profile switch is not lost.
+     */
+    suspend fun refresh(force: Boolean = true) {
+        if (!force && !isStale()) return
+        while (true) {
+            if (!refreshing.compareAndSet(expect = false, update = true)) {
+                refreshQueued.value = true
+                if (refreshing.value) return else continue
             }
-            // Adapters read app-wide state for the active profile; results gathered across a
-            // profile switch may belong to the new profile, so never store them under the old one.
-            if (profileIds.first() != profileId) return
-            val current = cache.value?.takeIf { it.profileId == profileId }?.stored
-                ?: decodeStoredWatchHistory(store.load(profileId))
-            val now = nowEpochMs()
-            // Slices of sources not pulled now are kept: the connected set can be briefly
-            // incomplete while auth state loads, and the UI already hides disconnected sources.
-            val sources = current.sources.toMutableMap()
-            val updated = current.lastUpdatedEpochMs.toMutableMap()
-            results.forEach { (id, result) ->
-                result.onSuccess { items ->
-                    sources[id.name] = items
-                    updated[id.name] = now
-                }
+            try {
+                do {
+                    refreshQueued.value = false
+                    refreshOnce()
+                } while (refreshQueued.value)
+            } finally {
+                refreshing.value = false
             }
-            val next = StoredWatchHistory(sources = sources, lastUpdatedEpochMs = updated)
-            store.save(profileId, encodeStoredWatchHistory(next))
-            cache.value = Cache(profileId, next)
-            failed.value = results.filter { it.second.isFailure }.mapTo(mutableSetOf()) { it.first }
-        } finally {
-            refreshing.value = false
+            if (!refreshQueued.value) return
         }
+    }
+
+    private suspend fun isStale(): Boolean {
+        val profileId = profileIds.first()
+        val stored = cache.value?.takeIf { it.profileId == profileId }?.stored
+            ?: decodeStoredWatchHistory(store.load(profileId))
+        val now = nowEpochMs()
+        return gateway.connectedSources().first().any { id ->
+            val updatedAt = stored.lastUpdatedEpochMs[id.name] ?: return@any true
+            now - updatedAt >= WATCH_HISTORY_STALE_AFTER_MS
+        }
+    }
+
+    private suspend fun refreshOnce() {
+        val profileId = profileIds.first()
+        val connected = gateway.connectedSources().first()
+        val results = supervisorScope {
+            connected.map { id ->
+                async {
+                    id to try {
+                        Result.success(gateway.pull(id, profileId))
+                    } catch (error: CancellationException) {
+                        // Trackers signal "account changed" with a CancellationException; only a
+                        // real cancellation of this refresh should abort the other sources.
+                        currentCoroutineContext().ensureActive()
+                        log.w(error) { "${id.name} refresh cancelled by source" }
+                        Result.failure(error)
+                    } catch (error: Throwable) {
+                        log.w(error) { "${id.name} refresh failed" }
+                        Result.failure(error)
+                    }
+                }
+            }.awaitAll()
+        }
+        // Adapters read app-wide state for the active profile; results gathered across a
+        // profile switch may belong to the new profile, so never store them under the old one.
+        if (profileIds.first() != profileId) return
+        val current = cache.value?.takeIf { it.profileId == profileId }?.stored
+            ?: decodeStoredWatchHistory(store.load(profileId))
+        val now = nowEpochMs()
+        // Slices of sources not pulled now are kept: the connected set can be briefly
+        // incomplete while auth state loads, and the UI already hides disconnected sources.
+        val sources = current.sources.toMutableMap()
+        val updated = current.lastUpdatedEpochMs.toMutableMap()
+        results.forEach { (id, result) ->
+            result.onSuccess { items ->
+                sources[id.name] = items
+                updated[id.name] = now
+            }
+        }
+        val next = StoredWatchHistory(sources = sources, lastUpdatedEpochMs = updated)
+        store.save(profileId, encodeStoredWatchHistory(next))
+        cache.value = Cache(profileId, next)
+        failed.value = results.filter { it.second.isFailure }.mapTo(mutableSetOf()) { it.first }
     }
 }
 
@@ -245,8 +296,13 @@ object WatchHistoryRepository {
         controller.start()
     }
 
-    fun refresh() {
+    /** Refreshes now; with [force] off only when some connected source is stale. */
+    fun refresh(force: Boolean = true) {
         ensureLoaded()
-        scope.launch { controller.refresh() }
+        scope.launch { controller.refresh(force) }
+    }
+
+    fun clearLocalState() {
+        controller.clear(1..MAX_PROFILES)
     }
 }
