@@ -1,5 +1,6 @@
 package com.nuvio.app.features.library
 
+import com.nuvio.app.features.tracking.TrackingListStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -180,32 +181,67 @@ class LibraryDisplaySettingsTest {
             sections = listOf(watchlist, personal),
             sourceMode = LibrarySourceMode.TRAKT,
             selectedSectionKey = "missing",
-            selectedType = "movie",
+            filters = LibraryFilterSelection(category = LibraryCategory.MOVIES),
             sortOption = LibrarySortOption.TITLE_ASC,
         )
 
         assertEquals("watchlist", projection.selectedSectionKey)
-        assertEquals(listOf("movie", "series"), projection.availableTypes)
-        assertEquals("movie", projection.selectedType)
         assertEquals(listOf("a", "z"), projection.entries.map { it.item.id })
         assertEquals(listOf("watchlist", "watchlist"), projection.entries.map { it.section.type })
+    }
 
-        val simklProjection = buildLibraryVerticalProjection(
-            sections = listOf(watchlist),
+    @Test
+    fun `native status sources merge every section and ignore the list selection`() {
+        val projection = buildLibraryVerticalProjection(
+            sections = simklStatusSections(),
+            sourceMode = LibrarySourceMode.SIMKL,
+            selectedSectionKey = "simkl:status:completed",
+            filters = LibraryFilterSelection(),
+            sortOption = LibrarySortOption.TITLE_ASC,
+        )
+
+        assertEquals(emptyList(), projection.availableSections)
+        assertEquals(null, projection.selectedSectionKey)
+        assertEquals(listOf("a", "b", "c"), projection.entries.map { it.item.id })
+        assertEquals("simkl:status:watching", projection.entries.first { it.item.id == "b" }.section.type)
+        assertEquals(false, projection.hasActiveFilters)
+    }
+
+    @Test
+    fun `status filter applies to merged native sections`() {
+        val projection = buildLibraryVerticalProjection(
+            sections = simklStatusSections(),
             sourceMode = LibrarySourceMode.SIMKL,
             selectedSectionKey = null,
-            selectedType = null,
-            sortOption = LibrarySortOption.DEFAULT,
+            filters = LibraryFilterSelection(statuses = setOf(TrackingListStatus.COMPLETED)),
+            sortOption = LibrarySortOption.TITLE_ASC,
         )
-        assertEquals(listOf("watchlist"), simklProjection.availableSections.map { it.type })
-        assertEquals("watchlist", simklProjection.selectedSectionKey)
+
+        assertEquals(listOf("c"), projection.entries.map { it.item.id })
+        assertEquals(true, projection.hasActiveFilters)
+        assertEquals(3, projection.totalBeforeFilters)
     }
+
+    private fun simklStatusSections(): List<LibrarySection> = listOf(
+        LibrarySection(
+            type = "simkl:status:watching",
+            displayTitle = "Watching",
+            items = listOf(item("a", type = "series", name = "Alpha"), item("b", type = "series", name = "Bravo")),
+        ),
+        LibrarySection(
+            type = "simkl:status:completed",
+            displayTitle = "Completed",
+            items = listOf(item("b", type = "series", name = "Bravo"), item("c", type = "series", name = "Charlie")),
+        ),
+    )
 
     @Test
     fun `display settings payload round trips and invalid values fall back safely`() {
         val state = LibraryDisplaySettingsUiState(
             layoutMode = LibraryLayoutMode.VERTICAL,
             sortOption = LibrarySortOption.TITLE_DESC,
+            category = LibraryCategory.ANIME,
+            statusFilter = setOf(TrackingListStatus.WATCHING, TrackingListStatus.DROPPED),
         )
 
         assertEquals(state, decodeLibraryDisplaySettings(encodeLibraryDisplaySettings(state)))
@@ -213,6 +249,28 @@ class LibraryDisplaySettingsTest {
             LibraryDisplaySettingsUiState(),
             decodeLibraryDisplaySettings("""{"layout_mode":"unknown","sort_option":"unknown"}"""),
         )
+    }
+
+    @Test
+    fun `old payloads keep layout and sort and default the filters`() {
+        assertEquals(
+            LibraryDisplaySettingsUiState(
+                layoutMode = LibraryLayoutMode.VERTICAL,
+                sortOption = LibrarySortOption.TITLE_ASC,
+                category = LibraryCategory.ALL,
+                statusFilter = emptySet(),
+            ),
+            decodeLibraryDisplaySettings("""{"layout_mode":"VERTICAL","sort_option":"TITLE_ASC"}"""),
+        )
+    }
+
+    @Test
+    fun `unknown filter names are dropped`() {
+        val decoded = decodeLibraryDisplaySettings(
+            """{"category":"cartoons","statuses":["watching","WATCHING","bogus"]}""",
+        )
+        assertEquals(LibraryCategory.ALL, decoded.category)
+        assertEquals(setOf(TrackingListStatus.WATCHING), decoded.statusFilter)
     }
 
     private fun item(
